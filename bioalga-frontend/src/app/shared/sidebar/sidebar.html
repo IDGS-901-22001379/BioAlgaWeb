@@ -1,0 +1,19 @@
+<aside class="sidebar" [class.collapsed]="collapsed()">
+  <div class="top">
+    <div class="brand" *ngIf="!collapsed()">BioAlga</div>
+    <button class="toggle" type="button" (click)="toggleCollapse()">
+      <span *ngIf="!collapsed()">⟨⟨</span>
+      <span *ngIf="collapsed()">⟩⟩</span>
+    </button>
+  </div>
+
+  <nav>
+    <a *ngFor="let m of menu"
+       [routerLink]="m.route"
+       routerLinkActive="active"
+       (click)="maybePromptLogin(m, $event)">
+      <span class="icon" [innerHTML]="m.svg"></span>
+      <span *ngIf="!collapsed()">{{ m.label }}</span>
+    </a>
+  </nav>
+</aside>

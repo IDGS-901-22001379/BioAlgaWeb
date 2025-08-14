@@ -1,0 +1,27 @@
+<div class="login-card">
+  <h2>BioAlga — Iniciar sesión</h2>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Usuario
+      <input type="text" formControlName="nombreUsuario" />
+    </label>
+    <div class="err" *ngIf="form.controls.nombreUsuario.touched && form.controls.nombreUsuario.invalid">
+      Ingresa un usuario válido (mín. 3 caracteres).
+    </div>
+
+    <label>
+      Contraseña
+      <input type="password" formControlName="contrasena" />
+    </label>
+    <div class="err" *ngIf="form.controls.contrasena.touched && form.controls.contrasena.invalid">
+      Ingresa una contraseña válida (mín. 6 caracteres).
+    </div>
+
+    <button type="submit" [disabled]="loading">
+      {{ loading ? 'Ingresando...' : 'Entrar' }}
+    </button>
+
+
+  </form>
+</div>
