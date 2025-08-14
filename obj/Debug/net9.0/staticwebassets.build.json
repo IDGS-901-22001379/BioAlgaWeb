@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "bLDKhKyj2mRv49PEZdapnjbH8w0IY4m4DrWrdNXwdEA=",
+  "Source": "BioAlga.Backend",
+  "BasePath": "_content/BioAlga.Backend",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
