@@ -1,50 +1,92 @@
 <div class="container mt-4">
 
-  <!-- Título y botón -->
+  <!-- Encabezado -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0">Usuarios</h2>
-    <button class="btn btn-primary" (click)="abrirModalNuevo()">
-      <i class="bi bi-plus-lg"></i> Nuevo Usuario
+    <button class="btn btn-success" (click)="abrirModalNuevo()">
+      <i class="bi bi-person-plus"></i> Crear usuario
     </button>
   </div>
 
-  <!-- Tabla de usuarios -->
-  <div class="table-responsive">
-    <table class="table table-striped table-hover align-middle">
-      <thead class="table-dark">
-        <tr>
-          <th>ID</th>
-          <th>Usuario</th>
-          <th>Rol</th>
-          <th>Empleado</th>
-          <th>Activo</th>
-          <th class="text-center">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let u of usuarios; trackBy: trackById">
-          <td>{{ u.id_Usuario }}</td>
-          <td>{{ u.nombre_Usuario }}</td>
-          <td>{{ u.id_Rol }}</td>
-          <td>{{ u.id_Empleado || '-' }}</td>
-          <td>
-            <span class="badge" [ngClass]="u.activo ? 'bg-success' : 'bg-danger'">
-              {{ u.activo ? 'Sí' : 'No' }}
-            </span>
-          </td>
-          <td class="text-center">
-            <button class="btn btn-sm btn-warning me-1" (click)="editar(u)">
-              <i class="bi bi-pencil"></i>
-            </button>
-            <button class="btn btn-sm btn-danger" (click)="eliminar(u)">
-              <i class="bi bi-trash"></i>
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Filtros de búsqueda -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text"
+                 class="form-control"
+                 placeholder="Buscar por nombre..."
+                 [(ngModel)]="filtroNombre"
+                 (ngModelChange)="buscar(1)">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select"
+                  [(ngModel)]="filtroActivo"
+                  (ngModelChange)="buscar(1)">
+            <option [ngValue]="undefined">-- Todos --</option>
+            <option [ngValue]="true">Activos</option>
+            <option [ngValue]="false">Inactivos</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary w-100" (click)="limpiarBusqueda()">
+            <i class="bi bi-x-circle"></i> Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- Contenedor tipo card -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <!-- Tabla de usuarios -->
+      <div class="table-responsive">
+        <table class="table table-striped align-middle">
+          <thead class="table-success">
+            <tr>
+              <th>ID</th>
+              <th>Usuario</th>
+              <th>Rol</th>
+              <th>Empleado</th>
+              <th>Estado</th>
+              <th>Último acceso</th>
+              <th>Fecha registro</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of usuarios; trackBy: trackById">
+              <td>{{ u.id_Usuario }}</td>
+              <td>{{ u.nombre_Usuario }}</td>
+              <td>{{ u.rol }}</td>
+              <td>{{ u.nombre_Empleado }} {{ u.apellido_Paterno }} {{ u.apellido_Materno }}</td>
+              <td>
+                <span [class.text-success]="u.activo" [class.text-danger]="!u.activo">
+                  {{ u.activo ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td>{{ u.ultimo_Login | date:'short' }}</td>
+              <td>{{ u.fecha_Registro | date:'shortDate' }}</td>
+              <td>
+                <button class="btn btn-sm btn-primary me-1" (click)="editar(u)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" (click)="eliminar(u)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="usuarios.length === 0">
+              <td colspan="8" class="text-center text-muted">No se encontraron usuarios</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- Modal -->
@@ -63,7 +105,6 @@
       <!-- Body -->
       <div class="modal-body">
         <form [formGroup]="formUsuario">
-
           <div class="row mb-3">
             <div class="col-md-6">
               <label class="form-label">Usuario *</label>
@@ -92,7 +133,6 @@
             <input class="form-check-input" type="checkbox" formControlName="activo" id="activoCheck">
             <label class="form-check-label" for="activoCheck">Activo</label>
           </div>
-
         </form>
       </div>
 

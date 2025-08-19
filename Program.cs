@@ -1,12 +1,14 @@
+// Program.cs
 using System.Text.Json.Serialization;
 using BioAlga.Backend.Data;
-using BioAlga.Backend.Mapping;
+using BioAlga.Backend.Mapping;                 // Para tus Profiles de AutoMapper (p.ej. UsuarioProfile)
 using BioAlga.Backend.Repositories;
 using BioAlga.Backend.Repositories.Interfaces;
 using BioAlga.Backend.Services;
 using BioAlga.Backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,9 +28,10 @@ builder.Services
     .AddControllers()
     .AddJsonOptions(opt =>
     {
-        // Evita ciclos al serializar (por relaciones Rol/Empleado)
+        // Evita ciclos al serializar relaciones (Rol, Empleado, etc.)
         opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        // opt.JsonSerializerOptions.PropertyNamingPolicy = null; // Descomenta si quieres PascalCase en JSON
     });
 
 // ===============================
@@ -48,13 +51,19 @@ builder.Services.AddSwaggerGen(c =>
 // ===============================
 // AutoMapper
 // ===============================
+// Usa cualquier Profile dentro del ensamblado donde está UsuarioProfile
 builder.Services.AddAutoMapper(typeof(UsuarioProfile).Assembly);
 
 // ===============================
-// Inyección de dependencias (Usuarios)
+// Inyección de dependencias
 // ===============================
+// Usuarios
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+
+// Clientes
+builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
+builder.Services.AddScoped<IClienteService, ClienteService>();
 
 // ===============================
 // CORS (Angular)
@@ -63,16 +72,20 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontCors", policy =>
     {
-        policy.WithOrigins("http://localhost:4200") // URL de tu Angular
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy.WithOrigins(
+                "http://localhost:4200",        // Angular dev
+                "http://127.0.0.1:4200"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
 // ===============================
-// Pipeline
+// Pipeline HTTP
 // ===============================
 if (app.Environment.IsDevelopment())
 {
@@ -82,9 +95,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Habilitar CORS para Angular
+// CORS para el frontend
 app.UseCors("FrontCors");
 
+// (Si agregas auth en el futuro, coloca app.UseAuthentication() aquí)
 app.UseAuthorization();
 
 app.MapControllers();

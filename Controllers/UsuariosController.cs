@@ -1,6 +1,4 @@
 // Controllers/UsuariosController.cs
-using System.Security.Cryptography;
-using System.Text;
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
@@ -19,15 +17,6 @@ namespace BioAlga.Backend.Controllers
         // =========================================
         // Helpers
         // =========================================
-        private static string HashSha256(string input)
-        {
-            using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-            var sb = new StringBuilder(bytes.Length * 2);
-            foreach (var b in bytes) sb.Append(b.ToString("x2"));
-            return sb.ToString();
-        }
-
         private static UsuarioDto MapToDto(Usuario u) => new()
         {
             Id_Usuario = u.Id_Usuario,
@@ -54,28 +43,15 @@ namespace BioAlga.Backend.Controllers
                 .AsNoTracking()
                 .Include(u => u.Rol)
                 .Include(u => u.Empleado)
-                .Select(u => new UsuarioDto
-                {
-                    Id_Usuario = u.Id_Usuario,
-                    Nombre_Usuario = u.Nombre_Usuario,
-                    Rol = u.Rol != null ? u.Rol.Nombre : string.Empty,
-                    Id_Rol = u.Id_Rol,
-                    Id_Empleado = u.Id_Empleado,
-                    Nombre_Empleado = u.Empleado != null ? u.Empleado.Nombre : null,
-                    Apellido_Paterno = u.Empleado != null ? u.Empleado.Apellido_Paterno : null,
-                    Apellido_Materno = u.Empleado != null ? u.Empleado.Apellido_Materno : null,
-                    Activo = u.Activo,
-                    Ultimo_Login = u.Ultimo_Login,
-                    Fecha_Registro = u.Fecha_Registro
-                })
+                .Select(u => MapToDto(u))
                 .ToListAsync();
 
             return Ok(usuarios);
         }
 
         // =========================================
-        // GET: api/usuarios/buscar?nombre=juan&page=1&pageSize=10&activo=true
-        // Búsqueda por nombre (y apellidos) + paginación + filtro por activo
+        // GET: api/usuarios/buscar
+        // Buscar + paginación + filtro activo
         // =========================================
         [HttpGet("buscar")]
         public async Task<ActionResult<object>> Buscar(
@@ -102,12 +78,7 @@ namespace BioAlga.Backend.Controllers
                         (
                             (u.Empleado.Nombre ?? "").Contains(n) ||
                             (u.Empleado.Apellido_Paterno ?? "").Contains(n) ||
-                            (u.Empleado.Apellido_Materno ?? "").Contains(n) ||
-                            (
-                                (u.Empleado.Nombre ?? "") + " " +
-                                (u.Empleado.Apellido_Paterno ?? "") + " " +
-                                (u.Empleado.Apellido_Materno ?? "")
-                            ).Contains(n)
+                            (u.Empleado.Apellido_Materno ?? "").Contains(n)
                         )
                     ));
             }
@@ -119,7 +90,6 @@ namespace BioAlga.Backend.Controllers
 
             var items = await q
                 .OrderBy(u => u.Nombre_Usuario)
-                .ThenBy(u => u.Empleado!.Apellido_Paterno)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(u => MapToDto(u))
@@ -147,7 +117,7 @@ namespace BioAlga.Backend.Controllers
 
         // =========================================
         // POST: api/usuarios
-        // (Crea usuario. La contraseña se guarda hasheada SHA-256)
+        // Crear usuario con BCrypt
         // =========================================
         public class UsuarioCreateRequest
         {
@@ -167,20 +137,10 @@ namespace BioAlga.Backend.Controllers
             var exists = await _db.Usuarios.AnyAsync(u => u.Nombre_Usuario == req.Nombre_Usuario);
             if (exists) return Conflict("El nombre de usuario ya existe.");
 
-            // Validar rol
-            var rolOk = await _db.Set<Rol>().AnyAsync(r => r.Id_Rol == req.Id_Rol);
-            if (!rolOk) return BadRequest("Rol inválido.");
-
-            if (req.Id_Empleado.HasValue)
-            {
-                var empOk = await _db.Set<Empleado>().AnyAsync(e => e.Id_Empleado == req.Id_Empleado.Value);
-                if (!empOk) return BadRequest("Empleado inválido.");
-            }
-
             var nuevo = new Usuario
             {
                 Nombre_Usuario = req.Nombre_Usuario,
-                Contrasena = HashSha256(req.Contrasena),
+                Contrasena = BCrypt.Net.BCrypt.HashPassword(req.Contrasena), // ✅ Encriptar
                 Id_Rol = req.Id_Rol,
                 Id_Empleado = req.Id_Empleado,
                 Activo = req.Activo,
@@ -190,7 +150,6 @@ namespace BioAlga.Backend.Controllers
             _db.Usuarios.Add(nuevo);
             await _db.SaveChangesAsync();
 
-            // Traer con include para DTO completo
             var creado = await _db.Usuarios
                 .Include(u => u.Rol)
                 .Include(u => u.Empleado)
@@ -201,7 +160,7 @@ namespace BioAlga.Backend.Controllers
 
         // =========================================
         // PUT: api/usuarios/{id}
-        // (Actualiza datos; si viene contraseña, la re-hashea)
+        // Actualizar datos con opción de re-hashear contraseña
         // =========================================
         public class UsuarioUpdateRequest
         {
@@ -226,29 +185,10 @@ namespace BioAlga.Backend.Controllers
             }
 
             if (!string.IsNullOrWhiteSpace(req.Contrasena))
-                u.Contrasena = HashSha256(req.Contrasena);
+                u.Contrasena = BCrypt.Net.BCrypt.HashPassword(req.Contrasena); // ✅ Re-hash
 
-            if (req.Id_Rol.HasValue)
-            {
-                var rolOk = await _db.Set<Rol>().AnyAsync(r => r.Id_Rol == req.Id_Rol.Value);
-                if (!rolOk) return BadRequest("Rol inválido.");
-                u.Id_Rol = req.Id_Rol.Value;
-            }
-
-            if (req.Id_Empleado.HasValue)
-            {
-                if (req.Id_Empleado.Value == 0)
-                {
-                    u.Id_Empleado = null;
-                }
-                else
-                {
-                    var empOk = await _db.Set<Empleado>().AnyAsync(e => e.Id_Empleado == req.Id_Empleado.Value);
-                    if (!empOk) return BadRequest("Empleado inválido.");
-                    u.Id_Empleado = req.Id_Empleado.Value;
-                }
-            }
-
+            if (req.Id_Rol.HasValue) u.Id_Rol = req.Id_Rol.Value;
+            if (req.Id_Empleado.HasValue) u.Id_Empleado = req.Id_Empleado.Value == 0 ? null : req.Id_Empleado;
             if (req.Activo.HasValue) u.Activo = req.Activo.Value;
 
             await _db.SaveChangesAsync();

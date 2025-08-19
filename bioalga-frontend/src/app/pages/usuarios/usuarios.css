@@ -1,16 +1,86 @@
-.usuarios-wrapper { padding: 1rem; }
-.filtros { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; }
-.formulario { background: #111; border: 1px solid #333; padding: 1rem; border-radius: .5rem; margin-bottom: 1rem; }
-.grid { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: .75rem; }
-.grid label { display: flex; flex-direction: column; gap: .25rem; }
-.check { align-items: center; justify-content: end; }
-.acciones { margin-top: .75rem; display: flex; gap: .5rem; }
-.tabla table { width: 100%; border-collapse: collapse; }
-.tabla th, .tabla td { border-bottom: 1px solid #333; padding: .5rem; text-align: left; }
-.badge { padding: .1rem .4rem; border-radius: .25rem; font-size: .8rem; }
-.badge.ok { background: #164; color: #cfe; }
-.badge.off { background: #522; color: #fee; }
-.empty { text-align: center; color: #aaa; }
-.paginacion { display: flex; gap: .75rem; align-items: center; justify-content: center; padding: .75rem 0; }
-button { cursor: pointer; }
-button.danger { background: #6b1a1a; color: #fff; }
+.usuarios-wrapper {
+  padding: 1rem;
+}
+
+.filtros {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.formulario {
+  background: #111;
+  border: 1px solid #333;
+  padding: 1rem;
+  border-radius: .5rem;
+  margin-bottom: 1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: .75rem;
+}
+
+.grid label {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+
+.acciones {
+  margin-top: .75rem;
+  display: flex;
+  gap: .5rem;
+}
+
+.tabla table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla th,
+.tabla td {
+  border-bottom: 1px solid #333;
+  padding: .5rem;
+  text-align: left;
+}
+
+.badge {
+  padding: .1rem .4rem;
+  border-radius: .25rem;
+  font-size: .8rem;
+}
+
+.badge.ok {
+  background: #164;
+  color: #cfe;
+}
+
+.badge.off {
+  background: #522;
+  color: #fee;
+}
+
+.empty {
+  text-align: center;
+  color: #aaa;
+}
+
+.paginacion {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  justify-content: center;
+  padding: .75rem 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+button.danger {
+  background: #6b1a1a;
+  color: #fff;
+}

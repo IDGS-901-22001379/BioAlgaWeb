@@ -6,10 +6,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BioAlga.Backend.Controllers
 {
+    // DTO para la petición de login
     public class LoginRequest
     {
-        [Required] public string NombreUsuario { get; set; } = string.Empty;
-        [Required] public string Contrasena { get; set; } = string.Empty;
+        [Required] 
+        public string NombreUsuario { get; set; } = string.Empty;
+
+        [Required] 
+        public string Contrasena { get; set; } = string.Empty;
     }
 
     [ApiController]
@@ -17,27 +21,46 @@ namespace BioAlga.Backend.Controllers
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
-        public AuthController(ApplicationDbContext db) => _db = db;
 
+        public AuthController(ApplicationDbContext db)
+        {
+            _db = db;
+        }
+
+        /// <summary>
+        /// Endpoint de autenticación de usuario
+        /// POST: api/auth/login
+        /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
-            if (!ModelState.IsValid) return BadRequest("Datos inválidos.");
+            // Validación de datos
+            if (!ModelState.IsValid) 
+                return BadRequest("Datos inválidos.");
 
+            // Buscar usuario en la base de datos
             var user = await _db.Usuarios
                 .FirstOrDefaultAsync(u => u.Nombre_Usuario == req.NombreUsuario);
 
-            if (user is null) return Unauthorized("Usuario o contraseña inválidos.");
+            if (user is null) 
+                return Unauthorized("Usuario o contraseña inválidos.");
 
-            // ✅ Soporta hash BCrypt; si la contraseña guardada NO es hash, hace comparación plana (temporal).
+            // Verificación de contraseña con soporte para hash BCrypt
             bool valid;
-            if (user.Contrasena.StartsWith("$2")) // típico prefijo de BCrypt
+            if (user.Contrasena.StartsWith("$2")) // Prefijo típico de BCrypt
+            {
                 valid = BCrypt.Net.BCrypt.Verify(req.Contrasena, user.Contrasena);
+            }
             else
-                valid = user.Contrasena == req.Contrasena; // ❗ solo para pruebas. Luego migra a hash.
+            {
+                // Comparación simple (temporal, para pruebas)
+                valid = user.Contrasena == req.Contrasena;
+            }
 
-            if (!valid) return Unauthorized("Usuario o contraseña inválidos.");
+            if (!valid) 
+                return Unauthorized("Usuario o contraseña inválidos.");
 
+            // Retornar datos básicos (podrías añadir un JWT en producción)
             return Ok(new
             {
                 user.Id_Usuario,
