@@ -4,13 +4,17 @@ namespace BioAlga.Backend.Dtos
 {
     public class ActualizarClienteDto
     {
-        [MaxLength(100)]
-        public string? Nombre { get; set; }
+        // Campos editables (PATCH/PUT). No incluimos Id para evitar inconsistencias.
+        [Required, MinLength(2), MaxLength(100)]
+        public string Nombre { get; set; } = string.Empty;
 
         [MaxLength(100)]
-        public string? Apellido { get; set; }
+        public string? Apellido_Paterno { get; set; }
 
-        [MaxLength(100), EmailAddress]
+        [MaxLength(100)]
+        public string? Apellido_Materno { get; set; }
+
+        [EmailAddress, MaxLength(100)]
         public string? Correo { get; set; }
 
         [MaxLength(20)]
@@ -18,8 +22,10 @@ namespace BioAlga.Backend.Dtos
 
         public string? Direccion { get; set; }
 
-        public string? Tipo_Cliente { get; set; }
+        [MaxLength(20)]
+        public string Tipo_Cliente { get; set; } = "Normal";
 
-        public string? Estado { get; set; }
+        [MaxLength(20)]
+        public string Estado { get; set; } = "Activo";
     }
 }

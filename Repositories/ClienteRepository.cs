@@ -1,5 +1,5 @@
-// Repositories/ClienteRepository.cs
 using BioAlga.Backend.Data;
+using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
 using BioAlga.Backend.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -15,123 +15,116 @@ namespace BioAlga.Backend.Repositories
             _db = db;
         }
 
-        // ---------------------------------------
-        // Obtener todos con filtros + paginación
-        // ---------------------------------------
-        public async Task<IEnumerable<Cliente>> GetAllAsync(
-            string? q = null,
-            string? estado = null,
-            string? tipoCliente = null,
-            DateTime? desde = null,
-            DateTime? hasta = null,
-            int page = 1,
-            int pageSize = 10)
+        // ============ BÚSQUEDA + FILTROS + Paginación ============
+        public async Task<(IReadOnlyList<Cliente> Items, int Total)> BuscarAsync(ClienteQueryParams query)
         {
-            var query = _db.Clientes.AsNoTracking().AsQueryable();
+            // base query
+            IQueryable<Cliente> q = _db.Set<Cliente>().AsNoTracking();
 
-            if (!string.IsNullOrWhiteSpace(q))
+            // ---- Texto libre: nombre/apellidos/correo/telefono
+            if (!string.IsNullOrWhiteSpace(query.Q))
             {
-                query = query.Where(c =>
-                    (c.Nombre   ?? "").Contains(q) ||
-                    (c.Apellido ?? "").Contains(q) ||
-                    (c.Correo   ?? "").Contains(q) ||
-                    (c.Telefono ?? "").Contains(q));
+                var term = query.Q.Trim();
+                var like = $"%{EscapeLike(term)}%";
+
+                // Collation utf8mb4_unicode_ci ya es case-insensitive en MySQL,
+                // pero usamos EF.Functions.Like para patrones.
+                q = q.Where(c =>
+                    EF.Functions.Like(c.Nombre, like) ||
+                    EF.Functions.Like(c.ApellidoPaterno!, like) ||
+                    EF.Functions.Like(c.ApellidoMaterno!, like) ||
+                    EF.Functions.Like(c.Correo!, like) ||
+                    EF.Functions.Like(c.Telefono!, like));
             }
 
-            if (!string.IsNullOrWhiteSpace(estado))
-                query = query.Where(c => c.Estado == estado);
+            // ---- Filtros
+            if (!string.IsNullOrWhiteSpace(query.Tipo_Cliente))
+                q = q.Where(c => c.TipoCliente == query.Tipo_Cliente);
 
-            if (!string.IsNullOrWhiteSpace(tipoCliente))
-                query = query.Where(c => c.Tipo_Cliente == tipoCliente);
+            if (!string.IsNullOrWhiteSpace(query.Estado))
+                q = q.Where(c => c.Estado == query.Estado);
 
-            if (desde.HasValue)
-                query = query.Where(c => c.Fecha_Registro >= desde.Value);
+            // ---- Ordenamiento
+            var sortBy  = (query.SortBy  ?? "nombre").ToLowerInvariant();
+            var sortDir = (query.SortDir ?? "asc").ToLowerInvariant();
 
-            if (hasta.HasValue)
-                query = query.Where(c => c.Fecha_Registro <= hasta.Value);
-
-            return await query
-                .OrderByDescending(c => c.Fecha_Registro)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-        }
-
-        public async Task<int> CountAsync(
-            string? q = null,
-            string? estado = null,
-            string? tipoCliente = null,
-            DateTime? desde = null,
-            DateTime? hasta = null)
-        {
-            var query = _db.Clientes.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q))
+            q = sortBy switch
             {
-                query = query.Where(c =>
-                    (c.Nombre   ?? "").Contains(q) ||
-                    (c.Apellido ?? "").Contains(q) ||
-                    (c.Correo   ?? "").Contains(q) ||
-                    (c.Telefono ?? "").Contains(q));
-            }
+                "fecha" => (sortDir == "desc")
+                    ? q.OrderByDescending(c => c.FechaRegistro).ThenBy(c => c.IdCliente)
+                    : q.OrderBy(c => c.FechaRegistro).ThenBy(c => c.IdCliente),
 
-            if (!string.IsNullOrWhiteSpace(estado))
-                query = query.Where(c => c.Estado == estado);
+                _ => (sortDir == "desc")
+                    ? q.OrderByDescending(c => c.Nombre)
+                         .ThenByDescending(c => c.ApellidoPaterno)
+                         .ThenByDescending(c => c.ApellidoMaterno)
+                    : q.OrderBy(c => c.Nombre)
+                         .ThenBy(c => c.ApellidoPaterno)
+                         .ThenBy(c => c.ApellidoMaterno),
+            };
 
-            if (!string.IsNullOrWhiteSpace(tipoCliente))
-                query = query.Where(c => c.Tipo_Cliente == tipoCliente);
+            // ---- Total antes de paginar
+            var total = await q.CountAsync();
 
-            if (desde.HasValue)
-                query = query.Where(c => c.Fecha_Registro >= desde.Value);
+            // ---- Paginación
+            var page = query.Page <= 0 ? 1 : query.Page;
+            var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
 
-            if (hasta.HasValue)
-                query = query.Where(c => c.Fecha_Registro <= hasta.Value);
+            var items = await q.Skip((page - 1) * pageSize)
+                               .Take(pageSize)
+                               .ToListAsync();
 
-            return await query.CountAsync();
+            return (items, total);
         }
 
-        // ---------------------------------------
-        // Obtener por Id
-        // ---------------------------------------
+        // ============ CRUD ============
         public async Task<Cliente?> GetByIdAsync(int id)
         {
-            return await _db.Clientes
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id_Cliente == id);
+            return await _db.Set<Cliente>().AsNoTracking()
+                .FirstOrDefaultAsync(c => c.IdCliente == id);
         }
 
-        // ---------------------------------------
-        // Crear
-        // ---------------------------------------
-        public async Task AddAsync(Cliente cliente)
+        public async Task<Cliente> AddAsync(Cliente cliente)
         {
-            await _db.Clientes.AddAsync(cliente);
-        }
-
-        // ---------------------------------------
-        // Actualizar
-        // ---------------------------------------
-        public async Task UpdateAsync(Cliente cliente)
-        {
-            _db.Clientes.Update(cliente);
-            await Task.CompletedTask;
-        }
-
-        // ---------------------------------------
-        // Eliminar
-        // ---------------------------------------
-        public async Task DeleteAsync(Cliente cliente)
-        {
-            _db.Clientes.Remove(cliente);
-            await Task.CompletedTask;
-        }
-
-        // ---------------------------------------
-        // Guardar cambios
-        // ---------------------------------------
-        public async Task SaveChangesAsync()
-        {
+            _db.Set<Cliente>().Add(cliente);
             await _db.SaveChangesAsync();
+            return cliente;
         }
+
+        public async Task<bool> UpdateAsync(Cliente cliente)
+        {
+            // Asegurar estado modificado
+            _db.Set<Cliente>().Update(cliente);
+            var changed = await _db.SaveChangesAsync();
+            return changed > 0;
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var entity = await _db.Set<Cliente>().FirstOrDefaultAsync(c => c.IdCliente == id);
+            if (entity == null) return false;
+
+            _db.Set<Cliente>().Remove(entity);
+            var changed = await _db.SaveChangesAsync();
+            return changed > 0;
+        }
+
+        // ============ Auxiliares ============
+        public async Task<bool> EmailExistsAsync(string email, int? excludeId = null)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+
+            var q = _db.Set<Cliente>().AsQueryable()
+                       .Where(c => c.Correo == email);
+
+            if (excludeId.HasValue)
+                q = q.Where(c => c.IdCliente != excludeId.Value);
+
+            return await q.AnyAsync();
+        }
+
+        // Escapa % y _ en patrones LIKE
+        private static string EscapeLike(string input)
+            => input.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
     }
 }

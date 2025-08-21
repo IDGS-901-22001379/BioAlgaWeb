@@ -1,19 +1,13 @@
-// Services/Interfaces/IClienteService.cs
 using BioAlga.Backend.Dtos;
 
 namespace BioAlga.Backend.Services.Interfaces
 {
     public interface IClienteService
     {
-        Task<(IEnumerable<ClienteDto> items, int total, int page, int pageSize)> 
-            BuscarAsync(ClienteQueryParams q);
-
+        Task<PagedResponse<ClienteDto>> BuscarAsync(ClienteQueryParams query);
         Task<ClienteDto?> ObtenerPorIdAsync(int id);
-
-        Task<ClienteDto> CrearAsync(ClienteCreateRequest req);
-
-        Task<ClienteDto?> ActualizarAsync(int id, ClienteUpdateRequest req);
-
+        Task<ClienteDto> CrearAsync(CrearClienteDto dto);
+        Task<ClienteDto?> ActualizarAsync(int id, ActualizarClienteDto dto);
         Task<bool> EliminarAsync(int id);
     }
 }

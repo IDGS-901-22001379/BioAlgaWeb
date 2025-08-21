@@ -1,13 +1,19 @@
 // pages/clientes/clientes.ts
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { ClientesService } from '../../services/clientes.service';
-import { ClienteDto, ClienteCreateRequest, ClienteUpdateRequest } from '../../models/cliente.model';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import Swal from 'sweetalert2';
 
-declare var bootstrap: any; // usar modales Bootstrap como en Usuarios
+import { ClientesService } from '../../services/clientes.service';
+import {
+  ClienteDto,
+  ClienteCreateRequest,
+  ClienteUpdateRequest,
+  nombreCompleto
+} from '../../models/cliente.model';
+
+declare var bootstrap: any;
 
 @Component({
   selector: 'app-clientes-page',
@@ -20,30 +26,47 @@ export class ClientesPageComponent implements OnInit {
   private fb = inject(FormBuilder);
   private api = inject(ClientesService);
 
-  // UI state
+  // UI
   cargando = signal(false);
   editandoId = signal<number | null>(null);
   private modalRef: any;
 
-  // Data
+  // Data / tabla
   clientes: ClienteDto[] = [];
   total = 0;
   page = 1;
   pageSize = 10;
 
-  // Filtros (coinciden con backend: q y tipo_Cliente)
-  filtroNombre = '';
-  filtroTipo: string | undefined = undefined; // "Normal" | "Premium" | undefined
+  // Filtros (coinciden con backend)
+  filtroNombre = ''; // -> q (nombre/apellidos/correo/teléfono en backend)
+  filtroTipo: 'Normal' | 'Mayoreo' | 'Especial' | 'Descuento' | undefined = undefined; // -> tipo_Cliente
+  filtroEstado: 'Activo' | 'Inactivo' | undefined = undefined; // -> estado
 
-  // Form del modal
+  // Orden (opcional; backend lo soporta)
+  sortBy: 'nombre' | 'fecha' = 'nombre';
+  sortDir: 'asc' | 'desc' = 'asc';
+
+  // Búsqueda en vivo por nombre
+  private nombreSearch$ = new Subject<string>();
+
+  // Form modal (⚠️ ahora con apellidos paterno y materno)
   formCliente = this.fb.group({
     nombre: ['', [Validators.required, Validators.minLength(2)]],
-    apellido: [''],
+    apellido_Paterno: [''],
+    apellido_Materno: [''],
     correo: ['', [Validators.email]],
     telefono: [''],
     direccion: [''],
-    tipo_Cliente: ['Normal', [Validators.required]],
+    tipo_Cliente: ['Normal', [Validators.required]], // Normal/Mayoreo/Especial/Descuento
+    estado: ['Activo', [Validators.required]], // Activo/Inactivo
   });
+
+  constructor() {
+    // Suscripción para búsqueda en vivo (debounce)
+    this.nombreSearch$
+      .pipe(debounceTime(250), distinctUntilChanged())
+      .subscribe(() => this.buscar(1));
+  }
 
   get totalPages(): number {
     return Math.ceil(this.total / (this.pageSize || 1));
@@ -53,35 +76,51 @@ export class ClientesPageComponent implements OnInit {
     this.buscar(1);
   }
 
+  // Llamado por (ngModelChange) del input de búsqueda
+  onNombreChange(valor: string) {
+    this.filtroNombre = valor ?? '';
+    this.nombreSearch$.next(this.filtroNombre);
+  }
+
   // ==============================
-  // Listar con filtros + paginación
+  // Listar con filtros
   // ==============================
   buscar(page: number = this.page): void {
     this.cargando.set(true);
-    this.api.buscar(this.filtroNombre, this.filtroTipo, page, this.pageSize).subscribe({
-      next: (res) => {
-        this.clientes = res.items;
-        this.total = res.total;
-        this.page = res.page;
-        this.pageSize = res.pageSize;
-        this.cargando.set(false);
-      },
-      error: (e) => {
-        this.cargando.set(false);
-        Swal.fire('Error', 'No se pudo cargar la lista de clientes', 'error');
-        console.error(e);
-      }
-    });
+    this.page = page;
+
+    const q = this.filtroNombre?.trim() || '';
+    const tipo = this.filtroTipo || undefined;
+    const estado = this.filtroEstado || undefined;
+
+    this.api.buscar(q, tipo, estado, this.page, this.pageSize, this.sortBy, this.sortDir)
+      .subscribe({
+        next: (res) => {
+          this.clientes = res.items;
+          this.total = res.total;
+          this.page = res.page;
+          this.pageSize = res.pageSize;
+          this.cargando.set(false);
+        },
+        error: (e) => {
+          this.cargando.set(false);
+          Swal.fire('Error', 'No se pudo cargar la lista de clientes', 'error');
+          console.error(e);
+        }
+      });
   }
 
   limpiarBusqueda(): void {
     this.filtroNombre = '';
     this.filtroTipo = undefined;
+    this.filtroEstado = undefined;
+    this.sortBy = 'nombre';
+    this.sortDir = 'asc';
     this.buscar(1);
   }
 
   // ==============================
-  // Modal: abrir / cerrar
+  // Modal Bootstrap
   // ==============================
   private showModal(): void {
     const el = document.getElementById('clienteModal');
@@ -95,15 +134,22 @@ export class ClientesPageComponent implements OnInit {
     if (this.modalRef) this.modalRef.hide();
   }
 
+  onCancelar(): void {
+    this.formCliente.reset();
+    this.hideModal();
+  }
+
   abrirModalNuevo(): void {
     this.editandoId.set(null);
     this.formCliente.reset({
       nombre: '',
-      apellido: '',
+      apellido_Paterno: '',
+      apellido_Materno: '',
       correo: '',
       telefono: '',
       direccion: '',
       tipo_Cliente: 'Normal',
+      estado: 'Activo',
     });
     this.showModal();
   }
@@ -112,17 +158,19 @@ export class ClientesPageComponent implements OnInit {
     this.editandoId.set(c.id_Cliente);
     this.formCliente.reset({
       nombre: c.nombre,
-      apellido: c.apellido ?? '',
+      apellido_Paterno: c.apellido_Paterno ?? '',
+      apellido_Materno: c.apellido_Materno ?? '',
       correo: c.correo ?? '',
       telefono: c.telefono ?? '',
       direccion: c.direccion ?? '',
       tipo_Cliente: c.tipo_Cliente,
+      estado: c.estado,
     });
     this.showModal();
   }
 
   // ==============================
-  // Crear o actualizar
+  // Crear / Actualizar
   // ==============================
   submit(): void {
     if (this.formCliente.invalid) {
@@ -133,13 +181,14 @@ export class ClientesPageComponent implements OnInit {
     const id = this.editandoId();
     const payload = this.formCliente.value as ClienteCreateRequest | ClienteUpdateRequest;
 
+    this.cargando.set(true);
+
     if (id === null) {
       // Crear
-      this.cargando.set(true);
       this.api.create(payload as ClienteCreateRequest).subscribe({
         next: (nuevo) => {
           Swal.fire('Listo', 'Cliente creado correctamente', 'success');
-          // agregar a la tabla sin recargar
+          // refrescamos lista en la página actual (opcional: reconsultar)
           this.clientes.unshift(nuevo);
           this.total++;
           this.cargando.set(false);
@@ -147,14 +196,13 @@ export class ClientesPageComponent implements OnInit {
         },
         error: (e) => {
           this.cargando.set(false);
-          const msg = e?.error ?? 'No se pudo crear el cliente';
+          const msg = e?.error?.message || 'No se pudo crear el cliente';
           Swal.fire('Error', msg, 'error');
           console.error(e);
         }
       });
     } else {
       // Actualizar
-      this.cargando.set(true);
       this.api.update(id, payload as ClienteUpdateRequest).subscribe({
         next: (actualizado) => {
           Swal.fire('Listo', 'Cliente actualizado correctamente', 'success');
@@ -165,7 +213,7 @@ export class ClientesPageComponent implements OnInit {
         },
         error: (e) => {
           this.cargando.set(false);
-          const msg = e?.error ?? 'No se pudo actualizar el cliente';
+          const msg = e?.error?.message || 'No se pudo actualizar el cliente';
           Swal.fire('Error', msg, 'error');
           console.error(e);
         }
@@ -177,15 +225,22 @@ export class ClientesPageComponent implements OnInit {
   // Eliminar
   // ==============================
   eliminar(c: ClienteDto): void {
+    const nombre = nombreCompleto({
+      nombre: c.nombre,
+      apellido_Paterno: c.apellido_Paterno,
+      apellido_Materno: c.apellido_Materno
+    });
+
     Swal.fire({
       title: '¿Eliminar cliente?',
-      text: `${c.nombre} ${c.apellido ?? ''}`.trim(),
+      text: nombre,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
     }).then(res => {
       if (!res.isConfirmed) return;
+
       this.cargando.set(true);
       this.api.remove(c.id_Cliente).subscribe({
         next: () => {
@@ -193,9 +248,10 @@ export class ClientesPageComponent implements OnInit {
           this.clientes = this.clientes.filter(x => x.id_Cliente !== c.id_Cliente);
           this.total--;
           this.cargando.set(false);
-          // si la página queda vacía, retrocede una
-          const quedaVacia = (this.page - 1) * this.pageSize >= this.total && this.page > 1;
-          if (quedaVacia) this.buscar(this.page - 1);
+
+          // si se quedó vacía la página, retrocede una
+          const vacia = (this.page - 1) * this.pageSize >= this.total && this.page > 1;
+          if (vacia) this.buscar(this.page - 1);
         },
         error: (e) => {
           this.cargando.set(false);

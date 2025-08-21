@@ -1,4 +1,4 @@
-// Services/ClienteService.cs
+using AutoMapper;
 using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
 using BioAlga.Backend.Repositories.Interfaces;
@@ -8,133 +8,160 @@ namespace BioAlga.Backend.Services
 {
     public class ClienteService : IClienteService
     {
-        private readonly IClienteRepository _repo;
+        private static readonly HashSet<string> TIPOS_PERMITIDOS =
+            new(StringComparer.OrdinalIgnoreCase) { "Normal", "Mayoreo", "Especial", "Descuento" };
 
-        public ClienteService(IClienteRepository repo)
+        private static readonly HashSet<string> ESTADOS_PERMITIDOS =
+            new(StringComparer.OrdinalIgnoreCase) { "Activo", "Inactivo" };
+
+        private readonly IClienteRepository _repo;
+        private readonly IMapper _mapper;
+
+        public ClienteService(IClienteRepository repo, IMapper mapper)
         {
             _repo = repo;
+            _mapper = mapper;
         }
 
-        // ----------------------------
-        // Helpers de mapeo
-        // ----------------------------
-        private static ClienteDto ToDto(Cliente c) => new()
+        // ================== Buscar ==================
+        public async Task<PagedResponse<ClienteDto>> BuscarAsync(ClienteQueryParams query)
         {
-            Id_Cliente     = c.Id_Cliente,
-            Nombre         = c.Nombre,
-            Apellido       = c.Apellido,
-            Correo         = c.Correo,
-            Telefono       = c.Telefono,
-            Direccion      = c.Direccion,
-            Tipo_Cliente   = c.Tipo_Cliente,
-            Estado         = c.Estado,
-            Fecha_Registro = c.Fecha_Registro
-        };
+            NormalizarQuery(query);
 
-        private static void ApplyUpdate(Cliente entity, ClienteUpdateRequest req)
-        {
-            if (!string.IsNullOrWhiteSpace(req.Nombre))      entity.Nombre       = req.Nombre.Trim();
-            if (req.Apellido   != null)                      entity.Apellido     = req.Apellido;
-            if (req.Correo     != null)                      entity.Correo       = req.Correo;
-            if (req.Telefono   != null)                      entity.Telefono     = req.Telefono;
-            if (req.Direccion  != null)                      entity.Direccion    = req.Direccion;
-            if (req.Tipo_Cliente != null)                    entity.Tipo_Cliente = req.Tipo_Cliente;
-            if (req.Estado       != null)                    entity.Estado       = req.Estado;
+            var (items, total) = await _repo.BuscarAsync(query);
+            var dtos = _mapper.Map<IReadOnlyList<ClienteDto>>(items);
+
+            return new PagedResponse<ClienteDto>
+            {
+                Page = query.Page <= 0 ? 1 : query.Page,
+                PageSize = query.PageSize <= 0 ? 10 : query.PageSize,
+                Total = total,
+                Items = dtos
+            };
         }
 
-        // ----------------------------
-        // Búsqueda + paginación
-        // ----------------------------
-        public async Task<(IEnumerable<ClienteDto> items, int total, int page, int pageSize)> 
-            BuscarAsync(ClienteQueryParams q)
-        {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 100) q.PageSize = 10;
-
-            var total = await _repo.CountAsync(q.Q, q.Estado, q.Tipo_Cliente, q.Desde, q.Hasta);
-            var list  = await _repo.GetAllAsync(q.Q, q.Estado, q.Tipo_Cliente, q.Desde, q.Hasta, q.Page, q.PageSize);
-
-            var items = list.Select(ToDto).ToList();
-            return (items, total, q.Page, q.PageSize);
-        }
-
-        // ----------------------------
-        // Obtener por Id
-        // ----------------------------
+        // ================== Obtener ==================
         public async Task<ClienteDto?> ObtenerPorIdAsync(int id)
         {
-            var c = await _repo.GetByIdAsync(id);
-            return c is null ? null : ToDto(c);
-        }
-
-        // ----------------------------
-        // Crear
-        // ----------------------------
-        public async Task<ClienteDto> CrearAsync(ClienteCreateRequest req)
-        {
-            // Validación de correo duplicado (si viene)
-            if (!string.IsNullOrWhiteSpace(req.Correo))
-            {
-                var existeCorreo = (await _repo.GetAllAsync(q: req.Correo, page: 1, pageSize: 1))
-                    .Any(x => x.Correo == req.Correo);
-                if (existeCorreo)
-                    throw new InvalidOperationException("El correo ya está registrado para otro cliente.");
-            }
-
-            var entity = new Cliente
-            {
-                Nombre         = req.Nombre.Trim(),
-                Apellido       = req.Apellido,
-                Correo         = req.Correo,
-                Telefono       = req.Telefono,
-                Direccion      = req.Direccion,
-                Tipo_Cliente   = string.IsNullOrWhiteSpace(req.Tipo_Cliente) ? "Normal" : req.Tipo_Cliente!,
-                Estado         = string.IsNullOrWhiteSpace(req.Estado) ? "Activo" : req.Estado!,
-                Fecha_Registro = DateTime.UtcNow
-            };
-
-            await _repo.AddAsync(entity);
-            await _repo.SaveChangesAsync();
-
-            return ToDto(entity);
-        }
-
-        // ----------------------------
-        // Actualizar
-        // ----------------------------
-        public async Task<ClienteDto?> ActualizarAsync(int id, ClienteUpdateRequest req)
-        {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity is null) return null;
-
-            // Validar correo duplicado si lo envían
-            if (!string.IsNullOrWhiteSpace(req.Correo))
-            {
-                var existe = (await _repo.GetAllAsync(q: req.Correo, page: 1, pageSize: 5))
-                    .Any(c => c.Id_Cliente != id && c.Correo == req.Correo);
-                if (existe)
-                    throw new InvalidOperationException("El correo ya está registrado para otro cliente.");
-            }
-
-            ApplyUpdate(entity, req);
-
-            await _repo.UpdateAsync(entity);
-            await _repo.SaveChangesAsync();
-
-            return ToDto(entity);
+            return entity is null ? null : _mapper.Map<ClienteDto>(entity);
         }
 
-        // ----------------------------
-        // Eliminar
-        // ----------------------------
+        // ================== Crear ==================
+        public async Task<ClienteDto> CrearAsync(CrearClienteDto dto)
+        {
+            Limpiar(dto);
+            ValidarDominio(dto);
+
+            if (!string.IsNullOrWhiteSpace(dto.Correo))
+            {
+                var exists = await _repo.EmailExistsAsync(dto.Correo!);
+                if (exists) throw new InvalidOperationException("El correo ya está registrado para otro cliente.");
+            }
+
+            var entity = _mapper.Map<Cliente>(dto);
+            var created = await _repo.AddAsync(entity);
+            return _mapper.Map<ClienteDto>(created);
+        }
+
+        // ================== Actualizar ==================
+        public async Task<ClienteDto?> ActualizarAsync(int id, ActualizarClienteDto dto)
+        {
+            Limpiar(dto);
+            ValidarDominio(dto);
+
+            var current = await _repo.GetByIdAsync(id);
+            if (current is null) return null;
+
+            if (!string.IsNullOrWhiteSpace(dto.Correo))
+            {
+                var exists = await _repo.EmailExistsAsync(dto.Correo!, excludeId: id);
+                if (exists) throw new InvalidOperationException("El correo ya está registrado para otro cliente.");
+            }
+
+            // Mapear campos editables
+            current.Nombre          = dto.Nombre;
+            current.ApellidoPaterno = dto.Apellido_Paterno;
+            current.ApellidoMaterno = dto.Apellido_Materno;
+            current.Correo          = dto.Correo;
+            current.Telefono        = dto.Telefono;
+            current.Direccion       = dto.Direccion;
+            current.TipoCliente     = dto.Tipo_Cliente;
+            current.Estado          = dto.Estado;
+
+            var ok = await _repo.UpdateAsync(current);
+            return ok ? _mapper.Map<ClienteDto>(current) : null;
+        }
+
+        // ================== Eliminar ==================
         public async Task<bool> EliminarAsync(int id)
         {
-            var entity = await _repo.GetByIdAsync(id);
-            if (entity is null) return false;
+            return await _repo.DeleteAsync(id);
+        }
 
-            await _repo.DeleteAsync(entity);
-            await _repo.SaveChangesAsync();
-            return true;
+        // ================== Helpers ==================
+        private static void Limpiar(CrearClienteDto dto)
+        {
+            dto.Nombre           = dto.Nombre?.Trim() ?? string.Empty;
+            dto.Apellido_Paterno = dto.Apellido_Paterno?.Trim();
+            dto.Apellido_Materno = dto.Apellido_Materno?.Trim();
+            dto.Correo           = dto.Correo?.Trim();
+            dto.Telefono         = dto.Telefono?.Trim();
+            dto.Direccion        = string.IsNullOrWhiteSpace(dto.Direccion) ? null : dto.Direccion.Trim();
+            dto.Tipo_Cliente     = string.IsNullOrWhiteSpace(dto.Tipo_Cliente) ? "Normal" : dto.Tipo_Cliente.Trim();
+            dto.Estado           = string.IsNullOrWhiteSpace(dto.Estado) ? "Activo" : dto.Estado.Trim();
+        }
+
+        private static void Limpiar(ActualizarClienteDto dto)
+        {
+            dto.Nombre           = dto.Nombre?.Trim() ?? string.Empty;
+            dto.Apellido_Paterno = dto.Apellido_Paterno?.Trim();
+            dto.Apellido_Materno = dto.Apellido_Materno?.Trim();
+            dto.Correo           = dto.Correo?.Trim();
+            dto.Telefono         = dto.Telefono?.Trim();
+            dto.Direccion        = string.IsNullOrWhiteSpace(dto.Direccion) ? null : dto.Direccion.Trim();
+            dto.Tipo_Cliente     = string.IsNullOrWhiteSpace(dto.Tipo_Cliente) ? "Normal" : dto.Tipo_Cliente.Trim();
+            dto.Estado           = string.IsNullOrWhiteSpace(dto.Estado) ? "Activo" : dto.Estado.Trim();
+        }
+
+        private static void ValidarDominio(CrearClienteDto dto)
+        {
+            if (!TIPOS_PERMITIDOS.Contains(dto.Tipo_Cliente))
+                throw new ArgumentException("Tipo_Cliente inválido. Usa: Normal, Mayoreo, Especial o Descuento.");
+
+            if (!ESTADOS_PERMITIDOS.Contains(dto.Estado))
+                throw new ArgumentException("Estado inválido. Usa: Activo o Inactivo.");
+        }
+
+        private static void ValidarDominio(ActualizarClienteDto dto)
+        {
+            if (!TIPOS_PERMITIDOS.Contains(dto.Tipo_Cliente))
+                throw new ArgumentException("Tipo_Cliente inválido. Usa: Normal, Mayoreo, Especial o Descuento.");
+
+            if (!ESTADOS_PERMITIDOS.Contains(dto.Estado))
+                throw new ArgumentException("Estado inválido. Usa: Activo o Inactivo.");
+        }
+
+        private static void NormalizarQuery(ClienteQueryParams q)
+        {
+            q.Q = string.IsNullOrWhiteSpace(q.Q) ? null : q.Q.Trim();
+            q.Tipo_Cliente = string.IsNullOrWhiteSpace(q.Tipo_Cliente) ? null : q.Tipo_Cliente.Trim();
+            q.Estado = string.IsNullOrWhiteSpace(q.Estado) ? null : q.Estado.Trim();
+
+            if (!string.IsNullOrWhiteSpace(q.SortBy))
+            {
+                var sb = q.SortBy.ToLowerInvariant();
+                q.SortBy = (sb == "fecha" || sb == "nombre") ? sb : "nombre";
+            }
+
+            if (!string.IsNullOrWhiteSpace(q.SortDir))
+            {
+                var sd = q.SortDir.ToLowerInvariant();
+                q.SortDir = (sd == "asc" || sd == "desc") ? sd : "asc";
+            }
+
+            if (q.Page <= 0) q.Page = 1;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
         }
     }
 }

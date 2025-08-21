@@ -1,0 +1,319 @@
+-- ======================================================
+-- BASE DE DATOS: bioalga  (POS Tecnología / IoT)
+-- VERSION: 2.0
+-- FECHA: 2025-08-20
+-- NOTA: Usuarios y Clientes van SIN CAMBIOS funcionales.
+-- ======================================================
+
+DROP DATABASE IF EXISTS bioalga;
+CREATE DATABASE bioalga CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE bioalga;
+
+CREATE DATABASE IF NOT EXISTS bioalga;
+
+CREATE USER IF NOT EXISTS 'bioalga_user'@'localhost' IDENTIFIED BY 'TuPassFuerte!123';
+GRANT ALL PRIVILEGES ON bioalga.* TO 'bioalga_user'@'localhost';
+FLUSH PRIVILEGES;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ==========================
+-- 1. ROLES
+-- ==========================
+CREATE TABLE roles (
+  id_rol INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(40) NOT NULL UNIQUE,
+  descripcion VARCHAR(200)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 2. EMPLEADOS
+-- ==========================
+CREATE TABLE empleados (
+  id_empleado INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  apellido_paterno VARCHAR(100),
+  apellido_materno VARCHAR(100),
+  curp VARCHAR(18),
+  rfc VARCHAR(13),
+  correo VARCHAR(120) UNIQUE,
+  telefono VARCHAR(20),
+  puesto VARCHAR(80),
+  salario DECIMAL(10,2) DEFAULT 0,
+  fecha_ingreso DATE,
+  fecha_baja DATE,
+  estatus ENUM('Activo','Inactivo','Baja') DEFAULT 'Activo',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 3. USUARIOS (SIN CAMBIOS)
+-- ==========================
+CREATE TABLE usuarios (
+  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+  nombre_usuario VARCHAR(50) NOT NULL UNIQUE,
+  contrasena VARCHAR(255) NOT NULL,
+  id_rol INT NOT NULL,
+  id_empleado INT NULL,
+  ultimo_login DATETIME NULL,
+  activo TINYINT(1) DEFAULT 1,
+  fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_usuarios_id_rol (id_rol),
+  INDEX idx_usuarios_id_empleado (id_empleado),
+  CONSTRAINT fk_usuarios_roles FOREIGN KEY (id_rol) REFERENCES roles(id_rol),
+  CONSTRAINT fk_usuarios_empleados FOREIGN KEY (id_empleado) REFERENCES empleados(id_empleado)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 4. PROVEEDORES
+-- ==========================
+CREATE TABLE proveedores (
+  id_proveedor INT AUTO_INCREMENT PRIMARY KEY,
+  nombre_empresa VARCHAR(120) NOT NULL,
+  contacto VARCHAR(100),
+  correo VARCHAR(120),
+  telefono VARCHAR(20),
+  direccion TEXT,
+  rfc VARCHAR(13),
+  pais VARCHAR(50),
+  ciudad VARCHAR(50),
+  codigo_postal VARCHAR(10),
+  estatus ENUM('Activo','Inactivo') DEFAULT 'Activo',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 5. CATEGORIAS / MARCAS / UNIDADES
+-- ==========================
+CREATE TABLE categorias (
+  id_categoria INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  descripcion TEXT
+) ENGINE=InnoDB;
+
+CREATE TABLE marcas (
+  id_marca INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  descripcion TEXT
+) ENGINE=InnoDB;
+
+CREATE TABLE unidades (
+  id_unidad INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL,
+  simbolo VARCHAR(10)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 6. PRODUCTOS
+-- ==========================
+CREATE TABLE productos (
+  id_producto INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(150) NOT NULL,
+  descripcion TEXT,
+  tipo ENUM('Componente','Sensor','Actuador','Módulo','Accesorio','Cable','Alimentación','Herramienta','Microcontrolador','Biorreactor','Alga','Otro') NOT NULL DEFAULT 'Componente',
+  id_categoria INT,
+  id_marca INT,
+  id_unidad INT,
+  proveedor_preferente_id INT NULL,
+  codigo_sku VARCHAR(40) NOT NULL UNIQUE,     -- Código interno
+  codigo_barras VARCHAR(50) UNIQUE,           -- UPC/EAN
+  estatus ENUM('Activo','Inactivo') DEFAULT 'Activo',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_prod_cat   FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria),
+  CONSTRAINT fk_prod_marca FOREIGN KEY (id_marca)     REFERENCES marcas(id_marca),
+  CONSTRAINT fk_prod_uni   FOREIGN KEY (id_unidad)    REFERENCES unidades(id_unidad),
+  CONSTRAINT fk_prod_prov  FOREIGN KEY (proveedor_preferente_id) REFERENCES proveedores(id_proveedor)
+) ENGINE=InnoDB;
+
+-- Especificaciones técnicas (clave-valor)
+CREATE TABLE producto_specs (
+  id_spec INT AUTO_INCREMENT PRIMARY KEY,
+  id_producto INT NOT NULL,
+  clave VARCHAR(80) NOT NULL,
+  valor VARCHAR(255) NOT NULL,
+  CONSTRAINT fk_specs_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 7. PRECIOS (histórico)
+-- ==========================
+CREATE TABLE producto_precios (
+  id_precio INT AUTO_INCREMENT PRIMARY KEY,
+  id_producto INT NOT NULL,
+  tipo_precio ENUM('Normal','Mayoreo','Descuento','Especial') NOT NULL,
+  precio DECIMAL(10,2) NOT NULL,
+  vigente_desde DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  vigente_hasta DATETIME NULL,               -- NULL = sigue vigente
+  activo TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_precio_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+  INDEX idx_precio_vigencia (id_producto, tipo_precio, activo, vigente_desde)
+) ENGINE=InnoDB;
+
+-- Vista: precio vigente por tipo
+CREATE OR REPLACE VIEW vw_producto_precio_vigente AS
+SELECT p.id_producto,
+       pr.tipo_precio,
+       pr.precio
+FROM productos p
+JOIN (
+  SELECT id_producto, tipo_precio, precio
+  FROM producto_precios pp
+  WHERE pp.activo = 1 AND (pp.vigente_hasta IS NULL OR pp.vigente_hasta >= NOW())
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY id_producto, tipo_precio ORDER BY vigente_desde DESC) = 1
+) pr ON pr.id_producto = p.id_producto;
+
+-- ==========================
+-- 8. CLIENTES (SIN CAMBIOS)
+-- ==========================
+CREATE TABLE clientes (
+  id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100),
+  correo VARCHAR(100) UNIQUE,
+  telefono VARCHAR(20),
+  direccion TEXT,
+  tipo_cliente ENUM('Normal','Mayoreo','Especial','Descuento') DEFAULT 'Normal',
+  estado ENUM('Activo','Inactivo') DEFAULT 'Activo',
+  fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 9. COMPRAS
+-- ==========================
+CREATE TABLE compras (
+  id_compra INT AUTO_INCREMENT PRIMARY KEY,
+  proveedor_id INT NULL,
+  proveedor_texto VARCHAR(200) NULL,          -- cuando no hay proveedor registrado
+  fecha_compra DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2)  NOT NULL DEFAULT 0,
+  id_usuario INT NOT NULL,
+  notas TEXT,
+  CONSTRAINT fk_compra_prov FOREIGN KEY (proveedor_id) REFERENCES proveedores(id_proveedor),
+  CONSTRAINT fk_compra_user FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+) ENGINE=InnoDB;
+
+CREATE TABLE detalle_compra (
+  id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+  id_compra INT NOT NULL,
+  id_producto INT NOT NULL,
+  cantidad INT NOT NULL,
+  costo_unitario DECIMAL(10,2) NOT NULL,
+  iva_unitario DECIMAL(10,2) DEFAULT 0,
+  CONSTRAINT fk_dcompra_compra FOREIGN KEY (id_compra) REFERENCES compras(id_compra) ON DELETE CASCADE,
+  CONSTRAINT fk_dcompra_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 10. INVENTARIO (movimientos)
+-- ==========================
+CREATE TABLE inventario_movimientos (
+  id_movimiento INT AUTO_INCREMENT PRIMARY KEY,
+  id_producto INT NOT NULL,
+  tipo_movimiento ENUM('Entrada','Salida','Ajuste') NOT NULL,
+  cantidad INT NOT NULL,
+  fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  origen_tipo ENUM('Compra','Venta','Pedido','Ajuste','Devolucion') NOT NULL,
+  origen_id INT NULL,
+  id_usuario INT NOT NULL,
+  referencia VARCHAR(255),
+  CONSTRAINT fk_mov_prod  FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
+  CONSTRAINT fk_mov_user  FOREIGN KEY (id_usuario)  REFERENCES usuarios(id_usuario),
+  INDEX idx_mov_origen (origen_tipo, origen_id),
+  INDEX idx_mov_prod_fecha (id_producto, fecha)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 11. VENTAS (POS)
+-- ==========================
+CREATE TABLE ventas (
+  id_venta INT AUTO_INCREMENT PRIMARY KEY,
+  cliente_id INT NULL,                        -- venta mostrador puede ser NULL o “Genérico”
+  fecha_venta DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  efectivo_recibido DECIMAL(12,2) DEFAULT 0,
+  cambio DECIMAL(12,2) DEFAULT 0,
+  metodo_pago ENUM('Efectivo','Tarjeta','Transferencia','Mixto') NOT NULL DEFAULT 'Efectivo',
+  id_usuario INT NOT NULL,
+  estatus ENUM('Pagada','Cancelada') DEFAULT 'Pagada',
+  CONSTRAINT fk_venta_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id_cliente),
+  CONSTRAINT fk_venta_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+  INDEX idx_venta_fecha (fecha_venta)
+) ENGINE=InnoDB;
+
+CREATE TABLE detalle_venta (
+  id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+  id_venta INT NOT NULL,
+  id_producto INT NOT NULL,
+  cantidad INT NOT NULL,
+  precio_unitario DECIMAL(10,2) NOT NULL,     -- precio aplicado en el momento
+  descuento_unitario DECIMAL(10,2) DEFAULT 0,
+  iva_unitario DECIMAL(10,2) DEFAULT 0,
+  CONSTRAINT fk_dventa_venta FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
+  CONSTRAINT fk_dventa_prod  FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 12. PEDIDOS (grandes cantidades)
+-- ==========================
+CREATE TABLE pedidos (
+  id_pedido INT AUTO_INCREMENT PRIMARY KEY,
+  cliente_id INT NOT NULL,
+  fecha_pedido DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_requerida DATE NULL,
+  anticipo DECIMAL(12,2) DEFAULT 0,
+  subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+  impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  estatus ENUM('Borrador','Confirmado','Preparación','Listo','Facturado','Entregado','Cancelado') DEFAULT 'Borrador',
+  id_usuario INT NOT NULL,
+  notas TEXT,
+  CONSTRAINT fk_pedido_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id_cliente),
+  CONSTRAINT fk_pedido_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+  INDEX idx_pedido_estatus (estatus)
+) ENGINE=InnoDB;
+
+CREATE TABLE detalle_pedido (
+  id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+  id_pedido INT NOT NULL,
+  id_producto INT NOT NULL,
+  cantidad INT NOT NULL,
+  precio_unitario DECIMAL(10,2) NOT NULL,
+  CONSTRAINT fk_dpedido_pedido FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+  CONSTRAINT fk_dpedido_prod   FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- 13. VISTAS PARA DASHBOARD
+-- ==========================
+-- Ventas por día (últimos 365)
+CREATE OR REPLACE VIEW vw_ventas_por_dia AS
+SELECT DATE(fecha_venta) dia, SUM(total) total
+FROM ventas
+WHERE estatus='Pagada'
+GROUP BY DATE(fecha_venta);
+
+-- Top productos vendidos (cantidad)
+CREATE OR REPLACE VIEW vw_top_productos AS
+SELECT dv.id_producto, p.nombre, SUM(dv.cantidad) total_unidades
+FROM detalle_venta dv
+JOIN productos p ON p.id_producto = dv.id_producto
+JOIN ventas v  ON v.id_venta = dv.id_venta AND v.estatus='Pagada'
+GROUP BY dv.id_producto, p.nombre
+ORDER BY total_unidades DESC;
+
+-- Clientes con mayor compra (total)
+CREATE OR REPLACE VIEW vw_top_clientes AS
+SELECT v.cliente_id, c.nombre, c.apellido, SUM(v.total) total_gastado
+FROM ventas v
+LEFT JOIN clientes c ON c.id_cliente = v.cliente_id
+WHERE v.estatus='Pagada'
+GROUP BY v.cliente_id, c.nombre, c.apellido
+ORDER BY total_gastado DESC;
+
+SET FOREIGN_KEY_CHECKS = 1;

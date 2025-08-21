@@ -1,28 +1,43 @@
 <div class="container mt-4">
   <h2 class="mb-3">Gestión de Clientes</h2>
 
-  <!-- Filtros -->
+  <!-- Filtros de búsqueda -->
   <div class="card mb-3">
-    <div class="card-body d-flex flex-wrap gap-2 align-items-end">
-      <div>
-        <label class="form-label">Nombre</label>
-        <input type="text" class="form-control" [(ngModel)]="filtroNombre" (keyup.enter)="buscar(1)">
-      </div>
-      <div>
-        <label class="form-label">Tipo</label>
-        <select class="form-select" [(ngModel)]="filtroTipo">
-          <option [ngValue]="undefined">-- Todos --</option>
-          <option value="Normal">Normal</option>
-          <option value="Premium">Premium</option>
-        </select>
-      </div>
-      <div class="ms-auto">
-        <button class="btn btn-primary me-2" (click)="buscar(1)">
-          <i class="bi bi-search"></i> Buscar
-        </button>
-        <button class="btn btn-secondary" (click)="limpiarBusqueda()">
-          <i class="bi bi-x-circle"></i> Limpiar
-        </button>
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <!-- Buscar -->
+        <div class="col-md-4">
+          <input type="text" class="form-control" [(ngModel)]="filtroNombre" (ngModelChange)="onNombreChange($event)"
+            (keyup.enter)="buscar(1)" placeholder="Buscar por nombre o apellidos..." autocomplete="on" />
+
+        </div>
+
+        <!-- Filtro Tipo -->
+        <div class="col-md-3">
+          <select class="form-select" [(ngModel)]="filtroTipo" (ngModelChange)="buscar(1)">
+            <option [ngValue]="undefined">-- Todos los tipos --</option>
+            <option value="Normal">Normal</option>
+            <option value="Mayoreo">Mayoreo</option>
+            <option value="Especial">Especial</option>
+            <option value="Descuento">Descuento</option>
+          </select>
+        </div>
+
+        <!-- Filtro Estado -->
+        <div class="col-md-3">
+          <select class="form-select" [(ngModel)]="filtroEstado" (ngModelChange)="buscar(1)">
+            <option [ngValue]="undefined">-- Todos los estados --</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+          </select>
+        </div>
+
+        <!-- Limpiar -->
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary w-100" (click)="limpiarBusqueda()">
+            <i class="bi bi-x-circle"></i> Limpiar
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -34,18 +49,20 @@
     </button>
   </div>
 
-  <!-- Tabla de clientes -->
+  <!-- Tabla -->
   <div class="table-responsive">
-    <table class="table table-bordered table-striped table-hover">
+    <table class="table table-bordered table-striped table-hover align-middle">
       <thead class="table-dark">
         <tr>
           <th>ID</th>
           <th>Nombre</th>
-          <th>Apellido</th>
+          <th>Apellido Paterno</th>
+          <th>Apellido Materno</th>
           <th>Correo</th>
           <th>Teléfono</th>
           <th>Dirección</th>
           <th>Tipo</th>
+          <th>Estado</th>
           <th>Fecha Registro</th>
           <th class="text-center">Acciones</th>
         </tr>
@@ -54,23 +71,29 @@
         <tr *ngFor="let c of clientes; trackBy: trackById">
           <td>{{ c.id_Cliente }}</td>
           <td>{{ c.nombre }}</td>
-          <td>{{ c.apellido || '-' }}</td>
+          <td>{{ c.apellido_Paterno || '-' }}</td>
+          <td>{{ c.apellido_Materno || '-' }}</td>
           <td>{{ c.correo || '-' }}</td>
           <td>{{ c.telefono || '-' }}</td>
           <td>{{ c.direccion || '-' }}</td>
           <td>{{ c.tipo_Cliente }}</td>
+          <td>
+            <span class="badge" [ngClass]="c.estado === 'Activo' ? 'bg-success' : 'bg-secondary'">
+              {{ c.estado }}
+            </span>
+          </td>
           <td>{{ c.fecha_Registro | date:'short' }}</td>
           <td class="text-center">
-            <button class="btn btn-sm btn-warning me-1" (click)="editar(c)">
+            <button class="btn btn-sm btn-warning me-1" (click)="editar(c)" title="Editar">
               <i class="bi bi-pencil-square"></i>
             </button>
-            <button class="btn btn-sm btn-danger" (click)="eliminar(c)">
+            <button class="btn btn-sm btn-danger" (click)="eliminar(c)" title="Eliminar">
               <i class="bi bi-trash"></i>
             </button>
           </td>
         </tr>
         <tr *ngIf="!clientes || clientes.length === 0">
-          <td colspan="9" class="text-center text-muted">No hay clientes registrados</td>
+          <td colspan="11" class="text-center text-muted">No hay clientes registrados</td>
         </tr>
       </tbody>
     </table>
@@ -83,9 +106,7 @@
         <a class="page-link" href="javascript:void(0)" (click)="irAtras()">Anterior</a>
       </li>
       <li class="page-item disabled">
-        <span class="page-link">
-          Página {{ page }} de {{ totalPages }}
-        </span>
+        <span class="page-link">Página {{ page }} de {{ totalPages }}</span>
       </li>
       <li class="page-item" [class.disabled]="!puedeAdelante()">
         <a class="page-link" href="javascript:void(0)" (click)="irAdelante()">Siguiente</a>
@@ -100,52 +121,67 @@
     <div class="modal-content">
       <form [formGroup]="formCliente" (ngSubmit)="submit()">
         <div class="modal-header">
-          <h5 class="modal-title">
-            {{ editandoId() ? 'Editar Cliente' : 'Nuevo Cliente' }}
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-            (click)="formCliente.reset()"></button>
+          <h5 class="modal-title">{{ editandoId() ? 'Editar Cliente' : 'Nuevo Cliente' }}</h5>
+          <button type="button" class="btn-close" aria-label="Close" (click)="onCancelar()"></button>
         </div>
+
         <div class="modal-body row g-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label">Nombre</label>
-            <input type="text" formControlName="nombre" class="form-control"
-              [class.is-invalid]="formCliente.controls['nombre'].touched && formCliente.controls['nombre'].invalid">
-            <div class="invalid-feedback">Nombre requerido</div>
+            <input type="text" class="form-control" formControlName="nombre"
+              [class.is-invalid]="formCliente.controls['nombre'].touched && formCliente.controls['nombre'].invalid" />
+            <div class="invalid-feedback">Nombre requerido (mín. 2 caracteres)</div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Apellido</label>
-            <input type="text" formControlName="apellido" class="form-control">
+
+          <div class="col-md-4">
+            <label class="form-label">Apellido Paterno</label>
+            <input type="text" class="form-control" formControlName="apellido_Paterno" />
           </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Apellido Materno</label>
+            <input type="text" class="form-control" formControlName="apellido_Materno" />
+          </div>
+
           <div class="col-md-6">
             <label class="form-label">Correo</label>
-            <input type="email" formControlName="correo" class="form-control"
-              [class.is-invalid]="formCliente.controls['correo'].touched && formCliente.controls['correo'].invalid">
+            <input type="email" class="form-control" formControlName="correo"
+              [class.is-invalid]="formCliente.controls['correo'].touched && formCliente.controls['correo'].invalid" />
             <div class="invalid-feedback">Correo inválido</div>
           </div>
+
           <div class="col-md-6">
             <label class="form-label">Teléfono</label>
-            <input type="text" formControlName="telefono" class="form-control">
+            <input type="text" class="form-control" formControlName="telefono" />
           </div>
-          <div class="col-md-12">
+
+          <div class="col-12">
             <label class="form-label">Dirección</label>
-            <input type="text" formControlName="direccion" class="form-control">
+            <input type="text" class="form-control" formControlName="direccion" />
           </div>
+
           <div class="col-md-6">
-            <label class="form-label">Tipo Cliente</label>
+            <label class="form-label">Tipo de Cliente</label>
             <select class="form-select" formControlName="tipo_Cliente">
               <option value="Normal">Normal</option>
-              <option value="Premium">Premium</option>
+              <option value="Mayoreo">Mayoreo</option>
+              <option value="Especial">Especial</option>
+              <option value="Descuento">Descuento</option>
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Estado</label>
+            <select class="form-select" formControlName="estado">
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
             </select>
           </div>
         </div>
+
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary" [disabled]="formCliente.invalid">
-            Guardar
-          </button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            Cancelar
-          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="formCliente.invalid">Guardar</button>
+          <button type="button" class="btn btn-secondary" (click)="onCancelar()">Cancelar</button>
         </div>
       </form>
     </div>

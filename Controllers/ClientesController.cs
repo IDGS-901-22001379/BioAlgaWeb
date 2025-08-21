@@ -1,181 +1,175 @@
-// Controllers/ClientesController.cs
-using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos;
-using BioAlga.Backend.Models;
+using BioAlga.Backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BioAlga.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Produces("application/json")]
     public class ClientesController : ControllerBase
     {
-        private readonly ApplicationDbContext _db;
-        public ClientesController(ApplicationDbContext db) => _db = db;
+        private readonly IClienteService _service;
+        private readonly ILogger<ClientesController> _logger;
 
-        // ------------------------------
-        // Helpers de mapeo
-        // ------------------------------
-        private static ClienteDto ToDto(Cliente c) => new()
+        public ClientesController(IClienteService service, ILogger<ClientesController> logger)
         {
-            Id_Cliente     = c.Id_Cliente,
-            Nombre         = c.Nombre,
-            Apellido       = c.Apellido,
-            Correo         = c.Correo,
-            Telefono       = c.Telefono,
-            Direccion      = c.Direccion,
-            Tipo_Cliente   = c.Tipo_Cliente,
-            Estado         = c.Estado,
-            Fecha_Registro = c.Fecha_Registro
-        };
+            _service = service;
+            _logger  = logger;
+        }
 
-        // ------------------------------
-        // GET: api/clientes (con filtros)
-        // ------------------------------
+        // =========================================
+        // GET: api/clientes  (Buscar + filtros + paginación)
+        // Params esperados desde Angular: q, tipo_Cliente, estado, page, pageSize, sortBy, sortDir
+        // =========================================
         [HttpGet]
-        public async Task<ActionResult<object>> GetAll([FromQuery] ClienteQueryParams q)
+        [ProducesResponseType(typeof(PagedResponse<ClienteDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<ClienteDto>>> Buscar(
+            [FromQuery] string? q,
+            [FromQuery(Name = "tipo_Cliente")] string? tipoCliente,
+            [FromQuery] string? estado,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? sortBy = "nombre",
+            [FromQuery] string? sortDir = "asc")
         {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 100) q.PageSize = 10;
+            // Normaliza límites de paginación
+            page     = page     <= 0 ? 1  : page;
+            pageSize = pageSize <= 0 ? 10 : pageSize;
 
-            var query = _db.Clientes.AsNoTracking().AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q.Q))
+            var query = new ClienteQueryParams
             {
-                var term = q.Q.Trim();
-                query = query.Where(c =>
-                    (c.Nombre   ?? "").Contains(term) ||
-                    (c.Apellido ?? "").Contains(term) ||
-                    (c.Correo   ?? "").Contains(term) ||
-                    (c.Telefono ?? "").Contains(term));
-            }
-
-            if (!string.IsNullOrWhiteSpace(q.Estado))
-                query = query.Where(c => c.Estado == q.Estado);
-
-            if (!string.IsNullOrWhiteSpace(q.Tipo_Cliente))
-                query = query.Where(c => c.Tipo_Cliente == q.Tipo_Cliente);
-
-            if (q.Desde.HasValue)
-                query = query.Where(c => c.Fecha_Registro >= q.Desde.Value);
-
-            if (q.Hasta.HasValue)
-                query = query.Where(c => c.Fecha_Registro <= q.Hasta.Value);
-
-            var total = await query.CountAsync();
-
-            var items = await query
-    .OrderByDescending(c => c.Fecha_Registro)
-    .Skip((q.Page - 1) * q.PageSize)
-    .Take(q.PageSize)
-    .Select(c => new ClienteDto
-    {
-        Id_Cliente     = c.Id_Cliente,
-        Nombre         = c.Nombre,
-        Apellido       = c.Apellido,
-        Correo         = c.Correo,
-        Telefono       = c.Telefono,
-        Direccion      = c.Direccion,
-        Tipo_Cliente   = c.Tipo_Cliente,
-        Estado         = c.Estado,
-        Fecha_Registro = c.Fecha_Registro
-    })
-    .ToListAsync();
-
-
-            return Ok(new { total, items, page = q.Page, pageSize = q.PageSize });
-        }
-
-        // ------------------------------
-        // GET: api/clientes/{id}
-        // ------------------------------
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<ClienteDto>> GetById(int id)
-        {
-            var c = await _db.Clientes.AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.Id_Cliente == id);
-            if (c is null) return NotFound();
-            return Ok(ToDto(c));
-        }
-
-        // ------------------------------
-        // POST: api/clientes
-        // ------------------------------
-        [HttpPost]
-        public async Task<ActionResult<ClienteDto>> Create([FromBody] ClienteCreateRequest req)
-        {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            // Valida correo duplicado si viene
-            if (!string.IsNullOrWhiteSpace(req.Correo))
-            {
-                var exist = await _db.Clientes.AnyAsync(c => c.Correo == req.Correo);
-                if (exist) return Conflict("El correo ya está registrado para otro cliente.");
-            }
-
-            var entity = new Cliente
-            {
-                Nombre       = req.Nombre.Trim(),
-                Apellido     = req.Apellido,
-                Correo       = req.Correo,
-                Telefono     = req.Telefono,
-                Direccion    = req.Direccion,
-                Tipo_Cliente = string.IsNullOrWhiteSpace(req.Tipo_Cliente) ? "Normal" : req.Tipo_Cliente!,
-                Estado       = string.IsNullOrWhiteSpace(req.Estado) ? "Activo" : req.Estado!,
-                Fecha_Registro = DateTime.UtcNow
+                Q            = q,
+                Tipo_Cliente = tipoCliente,
+                Estado       = estado,
+                Page         = page,
+                PageSize     = pageSize,
+                SortBy       = sortBy,
+                SortDir      = sortDir
             };
 
-            _db.Clientes.Add(entity);
-            await _db.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetById),
-                new { id = entity.Id_Cliente }, ToDto(entity));
+            var result = await _service.BuscarAsync(query);
+            return Ok(result);
         }
 
-        // ------------------------------
-        // PUT: api/clientes/{id}
-        // ------------------------------
-        [HttpPut("{id:int}")]
-        public async Task<ActionResult<ClienteDto>> Update(int id, [FromBody] ClienteUpdateRequest req)
+        // =========================================
+        // GET: api/clientes/{id}
+        // =========================================
+        [HttpGet("{id:int}")]
+        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ClienteDto>> ObtenerPorId(int id)
+        {
+            if (id <= 0) return BadRequest(new { message = "Id inválido." });
+
+            var dto = await _service.ObtenerPorIdAsync(id);
+            if (dto is null) return NotFound(new { message = "Cliente no encontrado." });
+
+            return Ok(dto);
+        }
+
+        // =========================================
+        // POST: api/clientes
+        // =========================================
+        [HttpPost]
+        [Consumes("application/json")]
+        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ClienteDto>> Crear([FromBody] CrearClienteDto body)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            var c = await _db.Clientes.FirstOrDefaultAsync(x => x.Id_Cliente == id);
-            if (c is null) return NotFound();
-
-            // Si envían correo, valida duplicado
-            if (!string.IsNullOrWhiteSpace(req.Correo))
+            try
             {
-                var duplicated = await _db.Clientes
-                    .AnyAsync(x => x.Id_Cliente != id && x.Correo == req.Correo);
-                if (duplicated) return Conflict("El correo ya está registrado para otro cliente.");
+                var creado = await _service.CrearAsync(body);
+
+                // Defensa extra: si por alguna razón el servicio no asignó Id, lo registramos
+                if (creado is null || creado.Id_Cliente <= 0)
+                {
+                    _logger.LogWarning("Se creó un cliente pero el DTO devuelto no contiene Id_Cliente válido.");
+                    return BadRequest(new { message = "No fue posible obtener el Id del cliente creado." });
+                }
+
+                return CreatedAtAction(nameof(ObtenerPorId),
+                    new { id = creado.Id_Cliente }, creado);
             }
-
-            if (!string.IsNullOrWhiteSpace(req.Nombre))      c.Nombre       = req.Nombre!.Trim();
-            if (req.Apellido   != null)                      c.Apellido     = req.Apellido;
-            if (req.Correo     != null)                      c.Correo       = req.Correo;
-            if (req.Telefono   != null)                      c.Telefono     = req.Telefono;
-            if (req.Direccion  != null)                      c.Direccion    = req.Direccion;
-            if (req.Tipo_Cliente != null)                    c.Tipo_Cliente = req.Tipo_Cliente;
-            if (req.Estado       != null)                    c.Estado       = req.Estado;
-
-            await _db.SaveChangesAsync();
-            return Ok(ToDto(c));
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex) // p.ej. correo duplicado
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear cliente");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "Error interno al crear el cliente." });
+            }
         }
 
-        // ------------------------------
-        // DELETE: api/clientes/{id}
-        // ------------------------------
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        // =========================================
+        // PUT: api/clientes/{id}
+        // =========================================
+        [HttpPut("{id:int}")]
+        [Consumes("application/json")]
+        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ClienteDto>> Actualizar(int id, [FromBody] ActualizarClienteDto body)
         {
-            var c = await _db.Clientes.FirstOrDefaultAsync(x => x.Id_Cliente == id);
-            if (c is null) return NotFound();
+            if (id <= 0) return BadRequest(new { message = "Id inválido." });
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            _db.Clientes.Remove(c);
-            await _db.SaveChangesAsync();
-            return NoContent();
+            try
+            {
+                var actualizado = await _service.ActualizarAsync(id, body);
+                if (actualizado is null) return NotFound(new { message = "Cliente no encontrado." });
+
+                return Ok(actualizado);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex) // p.ej. correo duplicado
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar cliente {Id}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "Error interno al actualizar el cliente." });
+            }
+        }
+
+        // =========================================
+        // DELETE: api/clientes/{id}
+        // =========================================
+        [HttpDelete("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Eliminar(int id)
+        {
+            if (id <= 0) return BadRequest(new { message = "Id inválido." });
+
+            try
+            {
+                var ok = await _service.EliminarAsync(id);
+                if (!ok) return NotFound(new { message = "Cliente no encontrado." });
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar cliente {Id}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "Error interno al eliminar el cliente." });
+            }
         }
     }
 }

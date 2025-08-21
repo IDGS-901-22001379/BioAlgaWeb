@@ -1,33 +1,38 @@
 using AutoMapper;
-using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
+using BioAlga.Backend.Dtos;
 
 namespace BioAlga.Backend.Mapping
 {
-    public class ClienteProfile : Profile
+    public class ClienteMappingProfile : Profile
     {
-        public ClienteProfile()
+        public ClienteMappingProfile()
         {
-            // ==========================
-            // Entidad → DTO
-            // ==========================
-            CreateMap<Cliente, ClienteDto>();
+            // ===== Modelo -> DTO =====
+            CreateMap<Cliente, ClienteDto>()
+                .ForMember(d => d.Id_Cliente,        o => o.MapFrom(s => s.IdCliente))
+                .ForMember(d => d.Apellido_Paterno,  o => o.MapFrom(s => s.ApellidoPaterno))
+                .ForMember(d => d.Apellido_Materno,  o => o.MapFrom(s => s.ApellidoMaterno))
+                .ForMember(d => d.Tipo_Cliente,      o => o.MapFrom(s => s.TipoCliente))
+                .ForMember(d => d.Fecha_Registro,    o => o.MapFrom(s => s.FechaRegistro));
 
-            // ==========================
-            // CrearClienteDto → Cliente
-            // ==========================
+            // ===== Crear DTO -> Modelo =====
             CreateMap<CrearClienteDto, Cliente>()
-                .ForMember(d => d.Fecha_Registro, opt => opt.Ignore()) // lo llena MySQL
-                .ForMember(d => d.Estado, opt => opt.MapFrom(src => src.Estado ?? "Activo"));
+                .ForMember(d => d.IdCliente,         o => o.Ignore())
+                .ForMember(d => d.ApellidoPaterno,   o => o.MapFrom(s => s.Apellido_Paterno))
+                .ForMember(d => d.ApellidoMaterno,   o => o.MapFrom(s => s.Apellido_Materno))
+                .ForMember(d => d.TipoCliente,       o => o.MapFrom(s => s.Tipo_Cliente))
+                .ForMember(d => d.FechaRegistro,     o => o.MapFrom(_ => DateTime.UtcNow));
 
-            // ==========================
-            // ActualizarClienteDto → Cliente
-            // Solo mapea propiedades no nulas
-            // ==========================
+            // ===== Actualizar DTO -> Modelo =====
             CreateMap<ActualizarClienteDto, Cliente>()
-                .ForAllMembers(opt => opt.Condition(
-                    (src, dest, srcMember) => srcMember != null
-                ));
+                .ForMember(d => d.IdCliente,         o => o.Ignore())
+                .ForMember(d => d.ApellidoPaterno,   o => o.MapFrom(s => s.Apellido_Paterno))
+                .ForMember(d => d.ApellidoMaterno,   o => o.MapFrom(s => s.Apellido_Materno))
+                .ForMember(d => d.TipoCliente,       o => o.MapFrom(s => s.Tipo_Cliente))
+                .ForMember(d => d.FechaRegistro,     o => o.Ignore());
+
+            
         }
     }
 }

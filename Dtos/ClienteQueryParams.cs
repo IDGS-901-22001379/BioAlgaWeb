@@ -1,16 +1,25 @@
-// Dtos/ClienteQueryParams.cs
+using System.ComponentModel.DataAnnotations;
+
 namespace BioAlga.Backend.Dtos
 {
     public class ClienteQueryParams
     {
-        public string? Q { get; set; }                   // búsqueda libre por nombre, apellido, correo, teléfono
-        public string? Estado { get; set; }              // Activo | Inactivo
-        public string? Tipo_Cliente { get; set; }        // Normal | Mayorista | Premium
+        // Texto libre para buscar por nombre y apellidos (y opcionalmente correo/teléfono)
+        public string? Q { get; set; }
+
+        // Filtros
+        public string? Tipo_Cliente { get; set; } // Normal | Mayoreo | Especial | Descuento
+        public string? Estado { get; set; }       // Activo | Inactivo
+
+        // Paginación
+        [Range(1, int.MaxValue)]
         public int Page { get; set; } = 1;
+
+        [Range(1, 200)]
         public int PageSize { get; set; } = 10;
 
-        // Filtro por rango de fechas (UTC)
-        public DateTime? Desde { get; set; }
-        public DateTime? Hasta { get; set; }
+        // Ordenamiento simple (opcional): nombre ASC/DESC
+        public string? SortBy { get; set; } = "nombre"; // nombre | fecha
+        public string? SortDir { get; set; } = "asc";    // asc | desc
     }
 }

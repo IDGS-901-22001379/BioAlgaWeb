@@ -1,40 +1,17 @@
-// Repositories/Interfaces/IClienteRepository.cs
+using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
 
 namespace BioAlga.Backend.Repositories.Interfaces
 {
     public interface IClienteRepository
     {
-        // Obtener todos (con filtros opcionales)
-        Task<IEnumerable<Cliente>> GetAllAsync(
-            string? q = null,
-            string? estado = null,
-            string? tipoCliente = null,
-            DateTime? desde = null,
-            DateTime? hasta = null,
-            int page = 1,
-            int pageSize = 10);
-
-        Task<int> CountAsync(
-            string? q = null,
-            string? estado = null,
-            string? tipoCliente = null,
-            DateTime? desde = null,
-            DateTime? hasta = null);
-
-        // Obtener uno por Id
+        Task<(IReadOnlyList<Cliente> Items, int Total)> BuscarAsync(ClienteQueryParams query);
         Task<Cliente?> GetByIdAsync(int id);
+        Task<Cliente> AddAsync(Cliente cliente);
+        Task<bool> UpdateAsync(Cliente cliente);
+        Task<bool> DeleteAsync(int id);
 
-        // Crear
-        Task AddAsync(Cliente cliente);
-
-        // Actualizar
-        Task UpdateAsync(Cliente cliente);
-
-        // Eliminar
-        Task DeleteAsync(Cliente cliente);
-
-        // Guardar cambios
-        Task SaveChangesAsync();
+        // Auxiliares
+        Task<bool> EmailExistsAsync(string email, int? excludeId = null);
     }
 }

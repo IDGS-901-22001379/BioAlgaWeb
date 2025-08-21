@@ -1,4 +1,3 @@
-// Models/Cliente.cs
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -9,41 +8,33 @@ namespace BioAlga.Backend.Models
     {
         [Key]
         [Column("id_cliente")]
-        public int Id_Cliente { get; set; }
+        public int IdCliente { get; set; }
 
-        [Required, MaxLength(100)]
         [Column("nombre")]
-        public string Nombre { get; set; } = string.Empty;
+        public string Nombre { get; set; } = null!;
 
-        // Un solo apellido (coincide con tu DTO y con la base actual)
-        [MaxLength(100)]
-        [Column("apellido")]
-        public string? Apellido { get; set; }
+        [Column("apellido_paterno")]
+        public string? ApellidoPaterno { get; set; }
 
-        [MaxLength(100)]
-        [EmailAddress]
+        [Column("apellido_materno")]
+        public string? ApellidoMaterno { get; set; }
+
         [Column("correo")]
         public string? Correo { get; set; }
 
-        [MaxLength(20)]
         [Column("telefono")]
         public string? Telefono { get; set; }
 
-        [Column("direccion", TypeName = "TEXT")]
+        [Column("direccion")]
         public string? Direccion { get; set; }
 
-        // Mantén estos como string (ENUM en MySQL si lo deseas)
-        [Required]
-        [MaxLength(20)]
         [Column("tipo_cliente")]
-        public string Tipo_Cliente { get; set; } = "Normal"; // Normal | Mayorista | Premium (ej.)
+        public string TipoCliente { get; set; } = "Normal";
 
-        [Required]
-        [MaxLength(10)]
         [Column("estado")]
-        public string Estado { get; set; } = "Activo"; // Activo | Inactivo
+        public string Estado { get; set; } = "Activo";
 
         [Column("fecha_registro")]
-        public DateTime Fecha_Registro { get; set; } = DateTime.UtcNow;
+        public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
     }
 }
