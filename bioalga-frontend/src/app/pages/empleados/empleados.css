@@ -1,0 +1,17 @@
+.container {
+  padding: 20px;
+}
+
+h2 {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.table th {
+  background-color: #198754;
+  color: white;
+}
+
+.text-danger {
+  font-size: 0.85rem;
+}

@@ -6,8 +6,8 @@ import { LoginComponent } from './pages/login/login.component';
 import { InicioComponent } from './pages/inicio/inicio.component';
 import { UsuariosPageComponent } from './pages/usuarios/usuarios';
 import { ClientesPageComponent } from './pages/clientes/clientes';
+import { EmpleadosPageComponent } from './pages/empleados/empleados';
 // import { DashboardPageComponent } from './pages/dashboard/dashboard';
-// import { EmpleadosPageComponent } from './pages/empleados/empleados';
 // import { ProveedoresPageComponent } from './pages/proveedores/proveedores';
 // import { ProductosPageComponent } from './pages/productos/productos';
 
@@ -24,13 +24,13 @@ export const routes: Routes = [
     component: InicioComponent,
     canActivate: [authGuard],
     children: [
-      // Redirigir al dashboard por defecto
+      // Redirigir al módulo de clientes por defecto
       { path: '', pathMatch: 'full', redirectTo: 'clientes' },
 
       // { path: 'dashboard', component: DashboardPageComponent },
       { path: 'usuarios', component: UsuariosPageComponent },
       { path: 'clientes', component: ClientesPageComponent },
-      // { path: 'empleados', component: EmpleadosPageComponent },
+      { path: 'empleados', component: EmpleadosPageComponent },
       // { path: 'proveedores', component: ProveedoresPageComponent },
       // { path: 'productos', component: ProductosPageComponent },
     ]

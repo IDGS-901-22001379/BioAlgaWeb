@@ -20,34 +20,117 @@ namespace BioAlga.Backend.Data
             base.OnModelCreating(modelBuilder);
 
             // ======= Configuración global MySQL (Pomelo) =======
-            // Asegura que todas las tablas usen utf8mb4 y collation insensible a mayúsculas.
             modelBuilder
                 .HasCharSet("utf8mb4")
                 .UseCollation("utf8mb4_unicode_ci");
 
-            // ======= Usuarios =======
+            // ============================================
+            // USUARIOS
+            // ============================================
             modelBuilder.Entity<Usuario>(e =>
             {
                 e.ToTable("usuarios");
 
-                // Claves foráneas
+                // FK: usuarios.id_rol -> roles.id_rol (N:1)
                 e.HasOne(u => u.Rol)
                     .WithMany()
                     .HasForeignKey(u => u.Id_Rol)
+                    .OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("fk_usuarios_roles");
 
+                // FK 1–1: usuarios.id_empleado -> empleados.id_empleado
+                // (navegación inversa Empleado.Usuario)
                 e.HasOne(u => u.Empleado)
-                    .WithMany()
-                    .HasForeignKey(u => u.Id_Empleado)
+                    .WithOne(emp => emp.Usuario)
+                    .HasForeignKey<Usuario>(u => u.Id_Empleado)
+                    .OnDelete(DeleteBehavior.SetNull)
                     .HasConstraintName("fk_usuarios_empleados");
             });
 
-            // ======= Clientes =======
+            // ============================================
+            // EMPLEADOS
+            // ============================================
+            modelBuilder.Entity<Empleado>(e =>
+            {
+                e.ToTable("empleados");
+
+                // Columnas y tamaños (refuerza el modelo)
+                e.Property(x => x.Nombre)
+                    .HasColumnName("nombre")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                e.Property(x => x.Apellido_Paterno)
+                    .HasColumnName("apellido_paterno")
+                    .HasMaxLength(100);
+
+                e.Property(x => x.Apellido_Materno)
+                    .HasColumnName("apellido_materno")
+                    .HasMaxLength(100);
+
+                e.Property(x => x.Curp)
+                    .HasColumnName("curp")
+                    .HasMaxLength(18);
+
+                e.Property(x => x.Rfc)
+                    .HasColumnName("rfc")
+                    .HasMaxLength(13);
+
+                e.Property(x => x.Correo)
+                    .HasColumnName("correo")
+                    .HasMaxLength(120);
+
+                e.Property(x => x.Telefono)
+                    .HasColumnName("telefono")
+                    .HasMaxLength(20);
+
+                e.Property(x => x.Puesto)
+                    .HasColumnName("puesto")
+                    .HasMaxLength(80);
+
+                e.Property(x => x.Salario)
+                    .HasColumnName("salario")
+                    .HasColumnType("decimal(10,2)");
+
+                e.Property(x => x.Fecha_Ingreso)
+                    .HasColumnName("fecha_ingreso")
+                    .HasColumnType("date");
+
+                e.Property(x => x.Fecha_Baja)
+                    .HasColumnName("fecha_baja")
+                    .HasColumnType("date");
+
+                e.Property(x => x.Estatus)
+                    .HasColumnName("estatus")
+                    .HasMaxLength(10)
+                    .HasDefaultValue("Activo");
+
+                e.Property(x => x.Created_At)
+                    .HasColumnName("created_at")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                e.Property(x => x.Updated_At)
+                    .HasColumnName("updated_at")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                    .ValueGeneratedOnAddOrUpdate();
+
+                // Índices útiles para búsqueda por nombre y correo
+                e.HasIndex(x => new { x.Nombre, x.Apellido_Paterno, x.Apellido_Materno })
+                    .HasDatabaseName("idx_empleados_nombre");
+
+                // Si en tu BD el correo es UNIQUE, cambia IsUnique(true)
+                e.HasIndex(x => x.Correo)
+                    .IsUnique(false)
+                    .HasDatabaseName("idx_empleados_correo");
+            });
+
+            // ============================================
+            // CLIENTES
+            // ============================================
             modelBuilder.Entity<Cliente>(e =>
             {
                 e.ToTable("clientes");
 
-                // Campos y restricciones (refuerza lo que ya definimos en el modelo)
                 e.Property(c => c.Nombre)
                     .HasColumnName("nombre")
                     .HasMaxLength(100)
@@ -83,21 +166,30 @@ namespace BioAlga.Backend.Data
                 e.Property(c => c.FechaRegistro)
                     .HasColumnName("fecha_registro");
 
-                // Índices
                 e.HasIndex(c => new { c.Nombre, c.ApellidoPaterno, c.ApellidoMaterno })
                     .HasDatabaseName("idx_clientes_nombre");
 
                 e.HasIndex(c => c.Correo)
                     .IsUnique()
-                    .HasDatabaseName("UX_clientes_correo"); // coincide con UNIQUE de la BD
+                    .HasDatabaseName("UX_clientes_correo");
             });
 
-          
-
-            // (Opcional) Roles: nombre único ya está por DB, pero lo reflejamos en EF
+            // ============================================
+            // ROLES
+            // ============================================
             modelBuilder.Entity<Rol>(e =>
             {
                 e.ToTable("roles");
+
+                e.Property(r => r.Nombre)
+                    .HasColumnName("nombre")
+                    .HasMaxLength(40)
+                    .IsRequired();
+
+                e.Property(r => r.Descripcion)
+                    .HasColumnName("descripcion")
+                    .HasMaxLength(200);
+
                 e.HasIndex(r => r.Nombre)
                     .IsUnique()
                     .HasDatabaseName("UX_roles_nombre");

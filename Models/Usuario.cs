@@ -57,28 +57,4 @@ namespace BioAlga.Backend.Models
         [Column("descripcion")]
         public string? Descripcion { get; set; }
     }
-
-    [Table("empleados")]
-    public class Empleado
-    {
-        [Key]
-        [Column("id_empleado")]
-        public int Id_Empleado { get; set; }
-
-        [Required, MaxLength(100)]
-        [Column("nombre")]
-        public string Nombre { get; set; } = string.Empty;
-
-        [MaxLength(100)]
-        [Column("apellido_paterno")]
-        public string? Apellido_Paterno { get; set; }
-
-        [MaxLength(100)]
-        [Column("apellido_materno")]
-        public string? Apellido_Materno { get; set; }
-
-        [MaxLength(120)]
-        [Column("correo")]
-        public string? Correo { get; set; }
-    }
 }

@@ -1,4 +1,3 @@
-// Program.cs
 using System.Text.Json.Serialization;
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Repositories;
@@ -7,7 +6,7 @@ using BioAlga.Backend.Services;
 using BioAlga.Backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using BioAlga.Backend.Mapping; // Para detectar ClienteMappingProfile (y cargar todos los profiles)
+using BioAlga.Backend.Mapping; // Para detectar MappingProfiles (Cliente, Empleado, etc.)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,13 +53,17 @@ builder.Services.AddAutoMapper(typeof(ClienteMappingProfile).Assembly);
 // ===============================
 // Inyección de dependencias
 // ===============================
-// Usuarios (como ya lo tenías)
+// Usuarios
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 
-// Clientes (nuevo)
+// Clientes
 builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
 builder.Services.AddScoped<IClienteService, ClienteService>();
+
+// Empleados
+builder.Services.AddScoped<IEmpleadoRepository, EmpleadoRepository>();
+builder.Services.AddScoped<IEmpleadoService, EmpleadoService>();
 
 // ===============================
 // CORS (Angular)

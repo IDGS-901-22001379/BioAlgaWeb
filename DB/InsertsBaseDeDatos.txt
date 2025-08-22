@@ -1,0 +1,110 @@
+
+USE bioalga;
+
+-- ==========================
+-- 1) ROLES
+-- ==========================
+INSERT INTO roles (nombre, descripcion)
+VALUES ('Administrador','Acceso completo al sistema');
+
+-- ==========================
+-- 2) EMPLEADOS
+-- ==========================
+INSERT INTO empleados (nombre, apellido_paterno, apellido_materno, curp, rfc, correo, telefono, puesto, salario, fecha_ingreso)
+VALUES ('Ana','García','Luna','GALA010101HDFRNN01','GAL010101AB1','ana.garcia@bioalga.mx','555-111-0001','Administradora',25000,'2024-01-15');
+
+-- ==========================
+-- 3) USUARIOS
+-- ==========================
+INSERT INTO usuarios (nombre_usuario, contrasena, id_rol, id_empleado)
+VALUES ('admin','123456',1,1);
+
+-- ==========================
+-- 4) PROVEEDORES
+-- ==========================
+INSERT INTO proveedores (nombre_empresa, contacto, correo, telefono, direccion, rfc, pais, ciudad, codigo_postal)
+VALUES ('TecnoSensores SA','Luis Martínez','ventas@tecnosensores.com','555-222-0001','Av. Central 123','TSO010101AA1','México','CDMX','01000');
+
+-- ==========================
+-- 5) CATEGORÍAS
+-- ==========================
+INSERT INTO categorias (nombre, descripcion)
+VALUES ('Sensores','Dispositivos que miden variables físicas');
+
+-- ==========================
+-- 6) MARCAS
+-- ==========================
+INSERT INTO marcas (nombre, descripcion)
+VALUES ('BioTech','Marca especializada en biotecnología');
+
+-- ==========================
+-- 7) UNIDADES
+-- ==========================
+INSERT INTO unidades (nombre, simbolo)
+VALUES ('Pieza','pz');
+
+-- ==========================
+-- 8) PRODUCTOS
+-- ==========================
+INSERT INTO productos (nombre, descripcion, tipo, id_categoria, id_marca, id_unidad, proveedor_preferente_id, codigo_sku, codigo_barras)
+VALUES ('Sensor de Temperatura DS18B20','Sensor digital de temperatura','Sensor',1,1,1,1,'SKU-DS18B20','1234567890123');
+
+-- ==========================
+-- 9) PRODUCTO_SPECS
+-- ==========================
+INSERT INTO producto_specs (id_producto, clave, valor)
+VALUES (1,'Rango de temperatura','-55°C a +125°C');
+
+-- ==========================
+-- 10) PRODUCTO_PRECIOS
+-- ==========================
+INSERT INTO producto_precios (id_producto, tipo_precio, precio)
+VALUES (1,'Normal',150.00);
+
+-- ==========================
+-- 11) CLIENTES
+-- ==========================
+INSERT INTO clientes (nombre, apellido_paterno, apellido_materno, correo, telefono, direccion, tipo_cliente)
+VALUES ('Bruno','Pérez','Soto','bruno.perez@example.com','555-333-0001','Calle Norte 45, CDMX','Normal');
+
+-- ==========================
+-- 12) COMPRAS
+-- ==========================
+INSERT INTO compras (proveedor_id, subtotal, impuestos, total, id_usuario, notas)
+VALUES (1,1000,160,1160,1,'Compra inicial de sensores');
+
+-- ==========================
+-- 13) DETALLE_COMPRA
+-- ==========================
+INSERT INTO detalle_compra (id_compra, id_producto, cantidad, costo_unitario, iva_unitario)
+VALUES (1,1,10,100,16);
+
+-- ==========================
+-- 14) INVENTARIO_MOVIMIENTOS
+-- ==========================
+INSERT INTO inventario_movimientos (id_producto, tipo_movimiento, cantidad, origen_tipo, origen_id, id_usuario, referencia)
+VALUES (1,'Entrada',10,'Compra',1,1,'Compra inicial');
+
+-- ==========================
+-- 15) VENTAS
+-- ==========================
+INSERT INTO ventas (cliente_id, subtotal, impuestos, total, efectivo_recibido, cambio, metodo_pago, id_usuario)
+VALUES (1,200,32,232,250,18,'Efectivo',1);
+
+-- ==========================
+-- 16) DETALLE_VENTA
+-- ==========================
+INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario, descuento_unitario, iva_unitario)
+VALUES (1,1,2,100,0,16);
+
+-- ==========================
+-- 17) PEDIDOS
+-- ==========================
+INSERT INTO pedidos (cliente_id, fecha_requerida, anticipo, subtotal, impuestos, total, estatus, id_usuario, notas)
+VALUES (1,'2025-09-01',100,500,80,580,'Confirmado',1,'Pedido mayorista');
+
+-- ==========================
+-- 18) DETALLE_PEDIDO
+-- ==========================
+INSERT INTO detalle_pedido (id_pedido, id_producto, cantidad, precio_unitario)
+VALUES (1,1,5,100);

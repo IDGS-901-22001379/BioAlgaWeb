@@ -1,16 +1,15 @@
 -- ======================================================
 -- BASE DE DATOS: bioalga  (POS Tecnología / IoT)
--- VERSION: 2.0
+-- VERSION: 2.1
 -- FECHA: 2025-08-20
--- NOTA: Usuarios y Clientes van SIN CAMBIOS funcionales.
+-- NOTA: Ajuste en CLIENTES: apellido_paterno y apellido_materno.
 -- ======================================================
 
 DROP DATABASE IF EXISTS bioalga;
 CREATE DATABASE bioalga CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE bioalga;
 
-CREATE DATABASE IF NOT EXISTS bioalga;
-
+-- Usuario de BD
 CREATE USER IF NOT EXISTS 'bioalga_user'@'localhost' IDENTIFIED BY 'TuPassFuerte!123';
 GRANT ALL PRIVILEGES ON bioalga.* TO 'bioalga_user'@'localhost';
 FLUSH PRIVILEGES;
@@ -18,16 +17,16 @@ FLUSH PRIVILEGES;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ==========================
--- 1. ROLES
+-- 1) ROLES
 -- ==========================
 CREATE TABLE roles (
   id_rol INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(40) NOT NULL UNIQUE,
   descripcion VARCHAR(200)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 2. EMPLEADOS
+-- 2) EMPLEADOS
 -- ==========================
 CREATE TABLE empleados (
   id_empleado INT AUTO_INCREMENT PRIMARY KEY,
@@ -44,11 +43,12 @@ CREATE TABLE empleados (
   fecha_baja DATE,
   estatus ENUM('Activo','Inactivo','Baja') DEFAULT 'Activo',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_emp_nombre (nombre, apellido_paterno, apellido_materno)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 3. USUARIOS (SIN CAMBIOS)
+-- 3) USUARIOS
 -- ==========================
 CREATE TABLE usuarios (
   id_usuario INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,10 +63,10 @@ CREATE TABLE usuarios (
   INDEX idx_usuarios_id_empleado (id_empleado),
   CONSTRAINT fk_usuarios_roles FOREIGN KEY (id_rol) REFERENCES roles(id_rol),
   CONSTRAINT fk_usuarios_empleados FOREIGN KEY (id_empleado) REFERENCES empleados(id_empleado)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 4. PROVEEDORES
+-- 4) PROVEEDORES
 -- ==========================
 CREATE TABLE proveedores (
   id_proveedor INT AUTO_INCREMENT PRIMARY KEY,
@@ -81,31 +81,31 @@ CREATE TABLE proveedores (
   codigo_postal VARCHAR(10),
   estatus ENUM('Activo','Inactivo') DEFAULT 'Activo',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 5. CATEGORIAS / MARCAS / UNIDADES
+-- 5) CATEGORÍAS / MARCAS / UNIDADES
 -- ==========================
 CREATE TABLE categorias (
   id_categoria INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
   descripcion TEXT
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE marcas (
   id_marca INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
   descripcion TEXT
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE unidades (
   id_unidad INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(50) NOT NULL,
   simbolo VARCHAR(10)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 6. PRODUCTOS
+-- 6) PRODUCTOS
 -- ==========================
 CREATE TABLE productos (
   id_producto INT AUTO_INCREMENT PRIMARY KEY,
@@ -116,8 +116,8 @@ CREATE TABLE productos (
   id_marca INT,
   id_unidad INT,
   proveedor_preferente_id INT NULL,
-  codigo_sku VARCHAR(40) NOT NULL UNIQUE,     -- Código interno
-  codigo_barras VARCHAR(50) UNIQUE,           -- UPC/EAN
+  codigo_sku VARCHAR(40) NOT NULL UNIQUE,
+  codigo_barras VARCHAR(50) UNIQUE,
   estatus ENUM('Activo','Inactivo') DEFAULT 'Activo',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -125,19 +125,18 @@ CREATE TABLE productos (
   CONSTRAINT fk_prod_marca FOREIGN KEY (id_marca)     REFERENCES marcas(id_marca),
   CONSTRAINT fk_prod_uni   FOREIGN KEY (id_unidad)    REFERENCES unidades(id_unidad),
   CONSTRAINT fk_prod_prov  FOREIGN KEY (proveedor_preferente_id) REFERENCES proveedores(id_proveedor)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Especificaciones técnicas (clave-valor)
 CREATE TABLE producto_specs (
   id_spec INT AUTO_INCREMENT PRIMARY KEY,
   id_producto INT NOT NULL,
   clave VARCHAR(80) NOT NULL,
   valor VARCHAR(255) NOT NULL,
   CONSTRAINT fk_specs_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 7. PRECIOS (histórico)
+-- 7) PRECIOS (histórico)
 -- ==========================
 CREATE TABLE producto_precios (
   id_precio INT AUTO_INCREMENT PRIMARY KEY,
@@ -145,47 +144,54 @@ CREATE TABLE producto_precios (
   tipo_precio ENUM('Normal','Mayoreo','Descuento','Especial') NOT NULL,
   precio DECIMAL(10,2) NOT NULL,
   vigente_desde DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  vigente_hasta DATETIME NULL,               -- NULL = sigue vigente
+  vigente_hasta DATETIME NULL,
   activo TINYINT(1) NOT NULL DEFAULT 1,
   CONSTRAINT fk_precio_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
   INDEX idx_precio_vigencia (id_producto, tipo_precio, activo, vigente_desde)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Vista: precio vigente por tipo
-CREATE OR REPLACE VIEW vw_producto_precio_vigente AS
-SELECT p.id_producto,
-       pr.tipo_precio,
-       pr.precio
+DROP VIEW IF EXISTS vw_producto_precio_vigente;
+CREATE VIEW vw_producto_precio_vigente AS
+SELECT p.id_producto, pp.tipo_precio, pp.precio
 FROM productos p
-JOIN (
-  SELECT id_producto, tipo_precio, precio
-  FROM producto_precios pp
-  WHERE pp.activo = 1 AND (pp.vigente_hasta IS NULL OR pp.vigente_hasta >= NOW())
-  QUALIFY ROW_NUMBER() OVER (PARTITION BY id_producto, tipo_precio ORDER BY vigente_desde DESC) = 1
-) pr ON pr.id_producto = p.id_producto;
+JOIN producto_precios pp
+  ON pp.id_producto = p.id_producto
+WHERE
+  pp.activo = 1
+  AND (pp.vigente_hasta IS NULL OR pp.vigente_hasta >= NOW())
+  AND pp.vigente_desde = (
+      SELECT MAX(pp2.vigente_desde)
+      FROM producto_precios pp2
+      WHERE pp2.id_producto = pp.id_producto
+        AND pp2.tipo_precio = pp.tipo_precio
+        AND pp2.activo = 1
+        AND (pp2.vigente_hasta IS NULL OR pp2.vigente_hasta >= NOW())
+  );
 
 -- ==========================
--- 8. CLIENTES (SIN CAMBIOS)
+-- 8) CLIENTES (con apellidos paterno/materno)
 -- ==========================
 CREATE TABLE clientes (
   id_cliente INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
-  apellido VARCHAR(100),
+  apellido_paterno VARCHAR(100),
+  apellido_materno VARCHAR(100),
   correo VARCHAR(100) UNIQUE,
   telefono VARCHAR(20),
   direccion TEXT,
   tipo_cliente ENUM('Normal','Mayoreo','Especial','Descuento') DEFAULT 'Normal',
   estado ENUM('Activo','Inactivo') DEFAULT 'Activo',
-  fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+  fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_clientes_nombre (nombre, apellido_paterno, apellido_materno)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 9. COMPRAS
+-- 9) COMPRAS
 -- ==========================
 CREATE TABLE compras (
   id_compra INT AUTO_INCREMENT PRIMARY KEY,
   proveedor_id INT NULL,
-  proveedor_texto VARCHAR(200) NULL,          -- cuando no hay proveedor registrado
+  proveedor_texto VARCHAR(200) NULL,
   fecha_compra DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -194,7 +200,7 @@ CREATE TABLE compras (
   notas TEXT,
   CONSTRAINT fk_compra_prov FOREIGN KEY (proveedor_id) REFERENCES proveedores(id_proveedor),
   CONSTRAINT fk_compra_user FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE detalle_compra (
   id_detalle INT AUTO_INCREMENT PRIMARY KEY,
@@ -205,10 +211,10 @@ CREATE TABLE detalle_compra (
   iva_unitario DECIMAL(10,2) DEFAULT 0,
   CONSTRAINT fk_dcompra_compra FOREIGN KEY (id_compra) REFERENCES compras(id_compra) ON DELETE CASCADE,
   CONSTRAINT fk_dcompra_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 10. INVENTARIO (movimientos)
+-- 10) INVENTARIO (movimientos)
 -- ==========================
 CREATE TABLE inventario_movimientos (
   id_movimiento INT AUTO_INCREMENT PRIMARY KEY,
@@ -224,14 +230,14 @@ CREATE TABLE inventario_movimientos (
   CONSTRAINT fk_mov_user  FOREIGN KEY (id_usuario)  REFERENCES usuarios(id_usuario),
   INDEX idx_mov_origen (origen_tipo, origen_id),
   INDEX idx_mov_prod_fecha (id_producto, fecha)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 11. VENTAS (POS)
+-- 11) VENTAS (POS)
 -- ==========================
 CREATE TABLE ventas (
   id_venta INT AUTO_INCREMENT PRIMARY KEY,
-  cliente_id INT NULL,                        -- venta mostrador puede ser NULL o “Genérico”
+  cliente_id INT NULL,
   fecha_venta DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -244,22 +250,22 @@ CREATE TABLE ventas (
   CONSTRAINT fk_venta_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id_cliente),
   CONSTRAINT fk_venta_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
   INDEX idx_venta_fecha (fecha_venta)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE detalle_venta (
   id_detalle INT AUTO_INCREMENT PRIMARY KEY,
   id_venta INT NOT NULL,
   id_producto INT NOT NULL,
   cantidad INT NOT NULL,
-  precio_unitario DECIMAL(10,2) NOT NULL,     -- precio aplicado en el momento
+  precio_unitario DECIMAL(10,2) NOT NULL,
   descuento_unitario DECIMAL(10,2) DEFAULT 0,
   iva_unitario DECIMAL(10,2) DEFAULT 0,
   CONSTRAINT fk_dventa_venta FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
   CONSTRAINT fk_dventa_prod  FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 12. PEDIDOS (grandes cantidades)
+-- 12) PEDIDOS (grandes cantidades)
 -- ==========================
 CREATE TABLE pedidos (
   id_pedido INT AUTO_INCREMENT PRIMARY KEY,
@@ -276,7 +282,7 @@ CREATE TABLE pedidos (
   CONSTRAINT fk_pedido_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id_cliente),
   CONSTRAINT fk_pedido_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
   INDEX idx_pedido_estatus (estatus)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE detalle_pedido (
   id_detalle INT AUTO_INCREMENT PRIMARY KEY,
@@ -286,34 +292,37 @@ CREATE TABLE detalle_pedido (
   precio_unitario DECIMAL(10,2) NOT NULL,
   CONSTRAINT fk_dpedido_pedido FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
   CONSTRAINT fk_dpedido_prod   FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 13. VISTAS PARA DASHBOARD
+-- 13) VISTAS PARA DASHBOARD
 -- ==========================
--- Ventas por día (últimos 365)
-CREATE OR REPLACE VIEW vw_ventas_por_dia AS
-SELECT DATE(fecha_venta) dia, SUM(total) total
+DROP VIEW IF EXISTS vw_ventas_por_dia;
+CREATE VIEW vw_ventas_por_dia AS
+SELECT DATE(fecha_venta) AS dia, SUM(total) AS total
 FROM ventas
 WHERE estatus='Pagada'
 GROUP BY DATE(fecha_venta);
 
--- Top productos vendidos (cantidad)
-CREATE OR REPLACE VIEW vw_top_productos AS
-SELECT dv.id_producto, p.nombre, SUM(dv.cantidad) total_unidades
+DROP VIEW IF EXISTS vw_top_productos;
+CREATE VIEW vw_top_productos AS
+SELECT dv.id_producto, p.nombre, SUM(dv.cantidad) AS total_unidades
 FROM detalle_venta dv
 JOIN productos p ON p.id_producto = dv.id_producto
 JOIN ventas v  ON v.id_venta = dv.id_venta AND v.estatus='Pagada'
 GROUP BY dv.id_producto, p.nombre
 ORDER BY total_unidades DESC;
 
--- Clientes con mayor compra (total)
-CREATE OR REPLACE VIEW vw_top_clientes AS
-SELECT v.cliente_id, c.nombre, c.apellido, SUM(v.total) total_gastado
+DROP VIEW IF EXISTS vw_top_clientes;
+CREATE VIEW vw_top_clientes AS
+SELECT
+  v.cliente_id,
+  CONCAT_WS(' ', c.nombre, c.apellido_paterno, c.apellido_materno) AS nombre_completo,
+  SUM(v.total) AS total_gastado
 FROM ventas v
 LEFT JOIN clientes c ON c.id_cliente = v.cliente_id
 WHERE v.estatus='Pagada'
-GROUP BY v.cliente_id, c.nombre, c.apellido
+GROUP BY v.cliente_id, nombre_completo
 ORDER BY total_gastado DESC;
 
 SET FOREIGN_KEY_CHECKS = 1;
