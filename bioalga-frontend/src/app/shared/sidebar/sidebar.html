@@ -1,7 +1,7 @@
 <aside class="sidebar" [class.collapsed]="collapsed()">
   <div class="top">
     <div class="brand" *ngIf="!collapsed()">BioAlga</div>
-    <button class="toggle" type="button" (click)="toggleCollapse()">
+    <button class="toggle" type="button" (click)="toggleCollapse()" aria-label="Expandir/Contraer menú">
       <span *ngIf="!collapsed()">⟨⟨</span>
       <span *ngIf="collapsed()">⟩⟩</span>
     </button>
@@ -11,6 +11,7 @@
     <a *ngFor="let m of menu"
        [routerLink]="m.route"
        routerLinkActive="active"
+       [routerLinkActiveOptions]="{ exact: true }"
        (click)="maybePromptLogin(m, $event)">
       <span class="icon" [innerHTML]="m.svg"></span>
       <span *ngIf="!collapsed()">{{ m.label }}</span>

@@ -65,6 +65,10 @@ builder.Services.AddScoped<IClienteService, ClienteService>();
 builder.Services.AddScoped<IEmpleadoRepository, EmpleadoRepository>();
 builder.Services.AddScoped<IEmpleadoService, EmpleadoService>();
 
+// >>> Proveedores (NUEVO)
+builder.Services.AddScoped<IProveedorRepository, ProveedorRepository>();
+builder.Services.AddScoped<IProveedorService, ProveedorService>();
+
 // ===============================
 // CORS (Angular)
 // ===============================

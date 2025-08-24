@@ -1,1 +1,196 @@
-<p>proveedores works!</p>
+<div class="container mt-4">
+  <h2 class="mb-3">Gestión de Proveedores</h2>
+
+  <!-- Filtros -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <!-- Buscar por nombre/correo (igual clientes) -->
+        <div class="col-md-4">
+          <input type="text" class="form-control"
+                 [(ngModel)]="filtroNombreCorreo"
+                 (ngModelChange)="onNombreCorreoChange($event)"
+                 (keyup.enter)="buscar(1)"
+                 placeholder="Buscar por nombre o correo..."
+                 autocomplete="on" />
+        </div>
+
+        <!-- Estatus -->
+        <div class="col-md-3">
+          <select class="form-select" [(ngModel)]="filtroEstatus" (ngModelChange)="buscar(1)">
+            <option [ngValue]="undefined">-- Todos los estatus --</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+          </select>
+        </div>
+
+        <!-- País -->
+        <div class="col-md-2">
+          <input class="form-control" [(ngModel)]="filtroPais" (ngModelChange)="buscar(1)" placeholder="País" />
+        </div>
+
+        <!-- Ciudad -->
+        <div class="col-md-2">
+          <input class="form-control" [(ngModel)]="filtroCiudad" (ngModelChange)="buscar(1)" placeholder="Ciudad" />
+        </div>
+
+        <!-- Limpiar -->
+        <div class="col-md-1">
+          <button class="btn btn-outline-secondary w-100" (click)="limpiarBusqueda()">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botón nuevo -->
+  <div class="mb-3">
+    <button class="btn btn-success" (click)="abrirModalNuevo()">
+      <i class="bi bi-building-add"></i> Nuevo Proveedor
+    </button>
+  </div>
+
+  <!-- Tabla -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Empresa</th>
+          <th>Contacto</th>
+          <th>Correo</th>
+          <th>Teléfono</th>
+          <th>RFC</th>
+          <th>País</th>
+          <th>Ciudad</th>
+          <th>CP</th>
+          <th>Estatus</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of proveedores; trackBy: trackById">
+          <td>{{ p.id_Proveedor }}</td>
+          <td>{{ p.nombre_Empresa }}</td>
+          <td>{{ p.contacto || '-' }}</td>
+          <td>{{ p.correo || '-' }}</td>
+          <td>{{ p.telefono || '-' }}</td>
+          <td>{{ p.rfc || '-' }}</td>
+          <td>{{ p.pais || '-' }}</td>
+          <td>{{ p.ciudad || '-' }}</td>
+          <td>{{ p.codigo_Postal || '-' }}</td>
+          <td>
+            <span class="badge" [ngClass]="p.estatus === 'Activo' ? 'bg-success' : 'bg-secondary'">
+              {{ p.estatus }}
+            </span>
+          </td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-warning me-1" (click)="editar(p)" title="Editar">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" (click)="eliminar(p)" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="!proveedores || proveedores.length === 0">
+          <td colspan="11" class="text-center text-muted">No hay proveedores registrados</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación -->
+  <nav *ngIf="totalPages > 1" class="mt-3">
+    <ul class="pagination justify-content-center">
+      <li class="page-item" [class.disabled]="!puedeAtras()">
+        <a class="page-link" href="javascript:void(0)" (click)="irAtras()">Anterior</a>
+      </li>
+      <li class="page-item disabled">
+        <span class="page-link">Página {{ page }} de {{ totalPages }}</span>
+      </li>
+      <li class="page-item" [class.disabled]="!puedeAdelante()">
+        <a class="page-link" href="javascript:void(0)" (click)="irAdelante()">Siguiente</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="proveedorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form [formGroup]="formProveedor" (ngSubmit)="submit()">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ editId ? 'Editar Proveedor' : 'Nuevo Proveedor' }}</h5>
+          <button type="button" class="btn-close" aria-label="Close" (click)="onCancelar()"></button>
+        </div>
+
+        <div class="modal-body row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nombre de la Empresa</label>
+            <input type="text" class="form-control" formControlName="nombre_Empresa"
+                   [class.is-invalid]="formProveedor.controls['nombre_Empresa'].touched && formProveedor.controls['nombre_Empresa'].invalid" />
+            <div class="invalid-feedback">Nombre requerido (mín. 2 caracteres)</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Contacto</label>
+            <input type="text" class="form-control" formControlName="contacto" />
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Correo</label>
+            <input type="email" class="form-control" formControlName="correo"
+                   [class.is-invalid]="formProveedor.controls['correo'].touched && formProveedor.controls['correo'].invalid" />
+            <div class="invalid-feedback">Correo inválido</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Teléfono</label>
+            <input type="text" class="form-control" formControlName="telefono" />
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Dirección</label>
+            <input type="text" class="form-control" formControlName="direccion" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">RFC</label>
+            <input type="text" class="form-control" formControlName="rfc" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">País</label>
+            <input type="text" class="form-control" formControlName="pais" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Ciudad</label>
+            <input type="text" class="form-control" formControlName="ciudad" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Código Postal</label>
+            <input type="text" class="form-control" formControlName="codigo_Postal" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Estatus</label>
+            <select class="form-select" formControlName="estatus">
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" [disabled]="formProveedor.invalid">Guardar</button>
+          <button type="button" class="btn btn-secondary" (click)="onCancelar()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

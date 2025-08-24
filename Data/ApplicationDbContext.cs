@@ -10,10 +10,12 @@ namespace BioAlga.Backend.Data
             : base(options) { }
 
         // ======= DbSets =======
-        public DbSet<Usuario> Usuarios { get; set; } = null!;
-        public DbSet<Rol> Roles { get; set; } = null!;
-        public DbSet<Empleado> Empleados { get; set; } = null!;
-        public DbSet<Cliente> Clientes { get; set; } = null!;
+        public DbSet<Usuario>   Usuarios   { get; set; } = null!;
+        public DbSet<Rol>       Roles      { get; set; } = null!;
+        public DbSet<Empleado>  Empleados  { get; set; } = null!;
+        public DbSet<Cliente>   Clientes   { get; set; } = null!;
+        // >>> NUEVO
+        public DbSet<Proveedor> Proveedores { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,15 +33,12 @@ namespace BioAlga.Backend.Data
             {
                 e.ToTable("usuarios");
 
-                // FK: usuarios.id_rol -> roles.id_rol (N:1)
                 e.HasOne(u => u.Rol)
                     .WithMany()
                     .HasForeignKey(u => u.Id_Rol)
                     .OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("fk_usuarios_roles");
 
-                // FK 1–1: usuarios.id_empleado -> empleados.id_empleado
-                // (navegación inversa Empleado.Usuario)
                 e.HasOne(u => u.Empleado)
                     .WithOne(emp => emp.Usuario)
                     .HasForeignKey<Usuario>(u => u.Id_Empleado)
@@ -54,7 +53,6 @@ namespace BioAlga.Backend.Data
             {
                 e.ToTable("empleados");
 
-                // Columnas y tamaños (refuerza el modelo)
                 e.Property(x => x.Nombre)
                     .HasColumnName("nombre")
                     .HasMaxLength(100)
@@ -114,11 +112,9 @@ namespace BioAlga.Backend.Data
                     .HasDefaultValueSql("CURRENT_TIMESTAMP")
                     .ValueGeneratedOnAddOrUpdate();
 
-                // Índices útiles para búsqueda por nombre y correo
                 e.HasIndex(x => new { x.Nombre, x.Apellido_Paterno, x.Apellido_Materno })
                     .HasDatabaseName("idx_empleados_nombre");
 
-                // Si en tu BD el correo es UNIQUE, cambia IsUnique(true)
                 e.HasIndex(x => x.Correo)
                     .IsUnique(false)
                     .HasDatabaseName("idx_empleados_correo");
@@ -193,6 +189,66 @@ namespace BioAlga.Backend.Data
                 e.HasIndex(r => r.Nombre)
                     .IsUnique()
                     .HasDatabaseName("UX_roles_nombre");
+            });
+
+            // ============================================
+            // PROVEEDORES (NUEVO)
+            // ============================================
+            modelBuilder.Entity<Proveedor>(e =>
+            {
+                e.ToTable("proveedores");
+
+                e.HasKey(p => p.IdProveedor);
+                e.Property(p => p.IdProveedor).HasColumnName("id_proveedor");
+
+                e.Property(p => p.NombreEmpresa)
+                    .HasColumnName("nombre_empresa")
+                    .HasMaxLength(120)
+                    .IsRequired();
+
+                e.Property(p => p.Contacto)
+                    .HasColumnName("contacto")
+                    .HasMaxLength(100);
+
+                e.Property(p => p.Correo)
+                    .HasColumnName("correo")
+                    .HasMaxLength(120);
+
+                e.Property(p => p.Telefono)
+                    .HasColumnName("telefono")
+                    .HasMaxLength(20);
+
+                e.Property(p => p.Direccion)
+                    .HasColumnName("direccion");
+
+                e.Property(p => p.Rfc)
+                    .HasColumnName("rfc")
+                    .HasMaxLength(13);
+
+                e.Property(p => p.Pais)
+                    .HasColumnName("pais")
+                    .HasMaxLength(50);
+
+                e.Property(p => p.Ciudad)
+                    .HasColumnName("ciudad")
+                    .HasMaxLength(50);
+
+                e.Property(p => p.CodigoPostal)
+                    .HasColumnName("codigo_postal")
+                    .HasMaxLength(10);
+
+                e.Property(p => p.Estatus)
+                    .HasColumnName("estatus")
+                    .HasMaxLength(10)
+                    .HasDefaultValue("Activo");
+
+                e.Property(p => p.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                // Índices útiles para búsqueda
+                e.HasIndex(p => p.NombreEmpresa);
+                e.HasIndex(p => new { p.Pais, p.Ciudad });
             });
         }
     }

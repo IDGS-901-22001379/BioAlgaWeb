@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';     // 👈 necesario para *ngIf / *ngFor
-import { Router, RouterModule } from '@angular/router'; // 👈 necesario para routerLink / routerLinkActive
+import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 interface MenuItem {
@@ -12,8 +12,8 @@ interface MenuItem {
 
 @Component({
   selector: 'app-sidebar',
-  standalone: true,                     // 👈 standalone
-  imports: [CommonModule, RouterModule],// 👈 módulos que habilitan directivas
+  standalone: true,
+  imports: [CommonModule, RouterModule],
   templateUrl: './sidebar.html',
   styleUrls: ['./sidebar.css'],
 })
@@ -41,9 +41,11 @@ export class SidebarComponent {
 
   toggleCollapse() { this.collapsed.update(v => !v); }
 
+  // Protege rutas internas si el usuario no ha iniciado sesión.
+  // Aquí incluyo proveedores (y productos, opcional).
   maybePromptLogin(m: MenuItem, ev: Event) {
-    // Protege también empleados (igual que usuarios/clientes)
-    if (m.key !== 'usuarios' && m.key !== 'clientes' && m.key !== 'empleados') return;
+    const requiereLogin = ['usuarios', 'clientes', 'empleados', 'proveedores', 'productos'].includes(m.key);
+    if (!requiereLogin) return;
 
     if (!this.auth.isLoggedIn) {
       ev.preventDefault();

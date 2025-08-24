@@ -7,31 +7,31 @@ import { InicioComponent } from './pages/inicio/inicio.component';
 import { UsuariosPageComponent } from './pages/usuarios/usuarios';
 import { ClientesPageComponent } from './pages/clientes/clientes';
 import { EmpleadosPageComponent } from './pages/empleados/empleados';
+import { ProveedoresPageComponent } from './pages/proveedores/proveedores';
 // import { DashboardPageComponent } from './pages/dashboard/dashboard';
-// import { ProveedoresPageComponent } from './pages/proveedores/proveedores';
 // import { ProductosPageComponent } from './pages/productos/productos';
 
 export const routes: Routes = [
   // Ruta por defecto → login
   { path: '', pathMatch: 'full', redirectTo: 'login' },
 
-  // Login público
+  // Login (público)
   { path: 'login', component: LoginComponent },
 
-  // Inicio protegido por guard
+  // Área privada protegida
   {
     path: 'inicio',
     component: InicioComponent,
     canActivate: [authGuard],
     children: [
-      // Redirigir al módulo de clientes por defecto
+      // Redirección por defecto dentro de inicio
       { path: '', pathMatch: 'full', redirectTo: 'clientes' },
 
       // { path: 'dashboard', component: DashboardPageComponent },
       { path: 'usuarios', component: UsuariosPageComponent },
       { path: 'clientes', component: ClientesPageComponent },
       { path: 'empleados', component: EmpleadosPageComponent },
-      // { path: 'proveedores', component: ProveedoresPageComponent },
+      { path: 'proveedores', component: ProveedoresPageComponent },
       // { path: 'productos', component: ProductosPageComponent },
     ]
   },
