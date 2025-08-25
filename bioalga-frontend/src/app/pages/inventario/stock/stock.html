@@ -1,3 +1,4 @@
+<!-- src/app/pages/inventario/stock/stock.html -->
 <div class="container mt-4">
   <h2 class="mb-3">Inventario · Stock & Kardex</h2>
 
@@ -7,27 +8,35 @@
       <form [formGroup]="form" class="row g-3 align-items-end">
         <div class="col-md-6 position-relative">
           <label class="form-label">Producto (nombre / SKU / código)</label>
-          <input type="text" class="form-control" formControlName="busqueda"
-                 (focus)="showSugerencias.set(true)" autocomplete="off"
-                 placeholder="Ej. ESP32, HC-SR04, 750123...">
+          <input
+            type="text"
+            class="form-control"
+            formControlName="busqueda"
+            (focus)="showSugerencias.set(true)"
+            autocomplete="off"
+            placeholder="Ej. ESP32, HC-SR04, 750123..."
+          />
           <!-- Sugerencias -->
           <ul class="list-group sugerencias" *ngIf="showSugerencias() && sugerencias().length">
-            <li class="list-group-item d-flex justify-content-between align-items-center"
-                *ngFor="let s of sugerencias()" (click)="elegirProducto(s)">
+            <li
+              class="list-group-item d-flex justify-content-between align-items-center"
+              *ngFor="let s of sugerencias()"
+              (click)="elegirProducto(s)"
+            >
               <span>{{ s.nombre }}</span>
               <span class="badge text-bg-light">SKU: {{ s.sku }}</span>
             </li>
           </ul>
-          <input type="hidden" formControlName="id_Producto">
+          <input type="hidden" formControlName="id_Producto" />
         </div>
 
         <div class="col-md-3">
           <label class="form-label">Desde</label>
-          <input type="date" class="form-control" formControlName="desde">
+          <input type="date" class="form-control" formControlName="desde" />
         </div>
         <div class="col-md-3">
           <label class="form-label">Hasta</label>
-          <input type="date" class="form-control" formControlName="hasta">
+          <input type="date" class="form-control" formControlName="hasta" />
         </div>
 
         <div class="col-md-3">
@@ -39,6 +48,61 @@
           <button type="button" class="btn btn-primary w-100" (click)="consultar()" [disabled]="cargando()">
             <i class="bi bi-search"></i> Consultar
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Agregar / Quitar inventario (ajuste manual) -->
+  <div class="card mb-3" *ngIf="form.value.id_Producto">
+    <div class="card-header">Agregar a inventario</div>
+    <div class="card-body">
+      <form [formGroup]="formAjuste" class="row g-3 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label">Producto seleccionado</label>
+          <input type="text" class="form-control" [value]="form.value.busqueda" disabled />
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Cantidad</label>
+          <input type="number" min="1" class="form-control" formControlName="cantidad" />
+          <div class="invalid-feedback" *ngIf="formAjuste.controls['cantidad'].touched && formAjuste.controls['cantidad'].invalid">
+            Ingresa una cantidad válida (&gt; 0)
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Motivo (opcional)</label>
+          <input
+            type="text"
+            class="form-control"
+            formControlName="motivo"
+            placeholder="Ingreso inicial, ajuste, merma..."
+          />
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Usuario</label>
+          <input type="number" class="form-control" formControlName="id_Usuario" />
+          <div class="invalid-feedback" *ngIf="formAjuste.controls['id_Usuario'].touched && formAjuste.controls['id_Usuario'].invalid">
+            Usuario requerido
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <button type="button" class="btn btn-success w-100" (click)="ajustar('agregar')" [disabled]="cargando()">
+            <i class="bi bi-plus-circle"></i> Agregar
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button type="button" class="btn btn-outline-danger w-100" (click)="ajustar('quitar')" [disabled]="cargando()">
+            <i class="bi bi-dash-circle"></i> Quitar
+          </button>
+        </div>
+
+        <div class="col-md-6 text-end" *ngIf="stock()">
+          <span class="badge bg-secondary me-1">Stock actual: {{ stock()!.stock }}</span>
+          <small class="text-muted">ID: {{ stock()!.id_Producto }}</small>
         </div>
       </form>
     </div>
@@ -70,9 +134,13 @@
         <tr *ngFor="let k of kardex()">
           <td>{{ k.fecha | date:'short' }}</td>
           <td>
-            <span class="badge"
-                  [ngClass]="k.tipo==='Entrada' ? 'bg-success'
-                          : (k.tipo==='Salida' ? 'bg-danger' : 'bg-secondary')">
+            <span
+              class="badge"
+              [ngClass]="
+                k.tipo==='Entrada' ? 'bg-success'
+                : (k.tipo==='Salida' ? 'bg-danger' : 'bg-secondary')
+              "
+            >
               {{ k.tipo }}
             </span>
           </td>

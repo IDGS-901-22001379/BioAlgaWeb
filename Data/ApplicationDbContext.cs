@@ -10,10 +10,10 @@ namespace BioAlga.Backend.Data
             : base(options) { }
 
         // ======= DbSets existentes =======
-        public DbSet<Usuario>   Usuarios   { get; set; } = null!;
-        public DbSet<Rol>       Roles      { get; set; } = null!;
-        public DbSet<Empleado>  Empleados  { get; set; } = null!;
-        public DbSet<Cliente>   Clientes   { get; set; } = null!;
+        public DbSet<Usuario> Usuarios { get; set; } = null!;
+        public DbSet<Rol> Roles { get; set; } = null!;
+        public DbSet<Empleado> Empleados { get; set; } = null!;
+        public DbSet<Cliente> Clientes { get; set; } = null!;
         public DbSet<Proveedor> Proveedores { get; set; } = null!;
 
         // ======= NUEVOS DbSets (Catálogo) =======
@@ -25,6 +25,7 @@ namespace BioAlga.Backend.Data
         public DbSet<Compra> Compras { get; set; } = null!;
         public DbSet<DetalleCompra> DetalleCompras { get; set; } = null!;
         public DbSet<InventarioMovimiento> InventarioMovimientos { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -500,6 +501,7 @@ namespace BioAlga.Backend.Data
             // ============================================
             // INVENTARIO_MOVIMIENTOS (nuevo)
             // ============================================
+            // Mapeo:
             modelBuilder.Entity<InventarioMovimiento>(e =>
             {
                 e.ToTable("inventario_movimientos");
@@ -508,52 +510,25 @@ namespace BioAlga.Backend.Data
                 e.Property(m => m.IdMovimiento).HasColumnName("id_movimiento");
 
                 e.Property(m => m.IdProducto).HasColumnName("id_producto");
-
-                // Se guardan como texto ("Entrada","Salida","Ajuste")
                 e.Property(m => m.TipoMovimiento)
                     .HasColumnName("tipo_movimiento")
-                    .HasMaxLength(10)
-                    .IsRequired();
+                    .HasMaxLength(10); // Entrada/Salida/Ajuste
 
                 e.Property(m => m.Cantidad).HasColumnName("cantidad");
-
                 e.Property(m => m.Fecha)
-                    .HasColumnName("fecha");
+                    .HasColumnName("fecha")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                // "Compra","Venta","Pedido","Ajuste","Devolucion"
                 e.Property(m => m.OrigenTipo)
                     .HasColumnName("origen_tipo")
-                    .HasMaxLength(20)
-                    .IsRequired();
+                    .HasMaxLength(20);
 
-                e.Property(m => m.OrigenId)
-                    .HasColumnName("origen_id");
+                e.Property(m => m.OrigenId).HasColumnName("origen_id");
+                e.Property(m => m.IdUsuario).HasColumnName("id_usuario");
+                e.Property(m => m.Referencia).HasColumnName("referencia");
 
-                e.Property(m => m.IdUsuario)
-                    .HasColumnName("id_usuario");
-
-                e.Property(m => m.Referencia)
-                    .HasColumnName("referencia");
-
-                // FKs
-                e.HasOne<Producto>()
-                    .WithMany()
-                    .HasForeignKey(m => m.IdProducto)
-                    .OnDelete(DeleteBehavior.NoAction)
-                    .HasConstraintName("fk_mov_prod");
-
-                e.HasOne<Usuario>()
-                    .WithMany()
-                    .HasForeignKey(m => m.IdUsuario)
-                    .OnDelete(DeleteBehavior.NoAction)
-                    .HasConstraintName("fk_mov_user");
-
-                // Índices como en el SQL
-                e.HasIndex(m => new { m.OrigenTipo, m.OrigenId })
-                    .HasDatabaseName("idx_mov_origen");
-
-                e.HasIndex(m => new { m.IdProducto, m.Fecha })
-                    .HasDatabaseName("idx_mov_prod_fecha");
+                e.HasIndex(m => new { m.OrigenTipo, m.OrigenId }).HasDatabaseName("idx_mov_origen");
+                e.HasIndex(m => new { m.IdProducto, m.Fecha }).HasDatabaseName("idx_mov_prod_fecha");
             });
 
             // NOTA: si más adelante deseas mapear la vista vw_producto_precio_vigente,
