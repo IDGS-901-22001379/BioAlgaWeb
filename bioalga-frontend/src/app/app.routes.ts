@@ -1,15 +1,19 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 
-// Páginas
+// Páginas (component/standalone)
 import { LoginComponent } from './pages/login/login.component';
 import { InicioComponent } from './pages/inicio/inicio.component';
 import { UsuariosPageComponent } from './pages/usuarios/usuarios';
 import { ClientesPageComponent } from './pages/clientes/clientes';
 import { EmpleadosPageComponent } from './pages/empleados/empleados';
 import { ProveedoresPageComponent } from './pages/proveedores/proveedores';
+import { ProductosPageComponent } from './pages/productos/productos';   // ✅ ACTIVADO
+
+// ✅ NUEVOS (Compras + Inventario)
+import { ComprasPageComponent } from './pages/compras/compras';
+import { StockPageComponent } from './pages/inventario/stock/stock';
 // import { DashboardPageComponent } from './pages/dashboard/dashboard';
-// import { ProductosPageComponent } from './pages/productos/productos';
 
 export const routes: Routes = [
   // Ruta por defecto → login
@@ -32,10 +36,22 @@ export const routes: Routes = [
       { path: 'clientes', component: ClientesPageComponent },
       { path: 'empleados', component: EmpleadosPageComponent },
       { path: 'proveedores', component: ProveedoresPageComponent },
-      // { path: 'productos', component: ProductosPageComponent },
+      { path: 'productos', component: ProductosPageComponent },
+
+      // ✅ NUEVAS RUTAS
+      { path: 'compras', component: ComprasPageComponent },
+
+      {
+        path: 'inventario',
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'stock' },
+          { path: 'stock', component: StockPageComponent }, // Kardex / stock actual
+        ]
+      },
     ]
   },
 
   // Cualquier otra ruta → login
   { path: '**', redirectTo: 'login' }
 ];
+

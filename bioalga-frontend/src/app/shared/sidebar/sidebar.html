@@ -1,4 +1,4 @@
-<aside class="sidebar" [class.collapsed]="collapsed()">
+<aside class="sidebar" [class.collapsed]="collapsed()" aria-label="Menú principal">
   <div class="top">
     <div class="brand" *ngIf="!collapsed()">BioAlga</div>
     <button class="toggle" type="button" (click)="toggleCollapse()" aria-label="Expandir/Contraer menú">
@@ -9,12 +9,21 @@
 
   <nav>
     <a *ngFor="let m of menu"
+       class="nav-item"
+       [title]="titleFor(m)"
        [routerLink]="m.route"
        routerLinkActive="active"
        [routerLinkActiveOptions]="{ exact: true }"
        (click)="maybePromptLogin(m, $event)">
       <span class="icon" [innerHTML]="m.svg"></span>
-      <span *ngIf="!collapsed()">{{ m.label }}</span>
+      <span class="label" *ngIf="!collapsed()">{{ m.label }}</span>
     </a>
   </nav>
+
+  <div class="bottom" *ngIf="auth.isLoggedIn">
+    <button class="btn-logout" type="button" (click)="logout()" [title]="collapsed() ? 'Salir' : ''">
+      <span class="icon">⎋</span>
+      <span *ngIf="!collapsed()">Salir</span>
+    </button>
+  </div>
 </aside>

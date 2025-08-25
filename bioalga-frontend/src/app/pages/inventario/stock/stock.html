@@ -1,1 +1,89 @@
-<p>stock works!</p>
+<div class="container mt-4">
+  <h2 class="mb-3">Inventario · Stock & Kardex</h2>
+
+  <!-- Filtros -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <form [formGroup]="form" class="row g-3 align-items-end">
+        <div class="col-md-6 position-relative">
+          <label class="form-label">Producto (nombre / SKU / código)</label>
+          <input type="text" class="form-control" formControlName="busqueda"
+                 (focus)="showSugerencias.set(true)" autocomplete="off"
+                 placeholder="Ej. ESP32, HC-SR04, 750123...">
+          <!-- Sugerencias -->
+          <ul class="list-group sugerencias" *ngIf="showSugerencias() && sugerencias().length">
+            <li class="list-group-item d-flex justify-content-between align-items-center"
+                *ngFor="let s of sugerencias()" (click)="elegirProducto(s)">
+              <span>{{ s.nombre }}</span>
+              <span class="badge text-bg-light">SKU: {{ s.sku }}</span>
+            </li>
+          </ul>
+          <input type="hidden" formControlName="id_Producto">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Desde</label>
+          <input type="date" class="form-control" formControlName="desde">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Hasta</label>
+          <input type="date" class="form-control" formControlName="hasta">
+        </div>
+
+        <div class="col-md-3">
+          <button type="button" class="btn btn-outline-secondary w-100" (click)="limpiarProducto()">
+            <i class="bi bi-x-circle"></i> Limpiar
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button type="button" class="btn btn-primary w-100" (click)="consultar()" [disabled]="cargando()">
+            <i class="bi bi-search"></i> Consultar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stock actual -->
+  <div class="alert alert-info d-flex justify-content-between align-items-center" *ngIf="stock()">
+    <div>
+      <strong>Stock actual:</strong> {{ stock()!.stock }}
+    </div>
+    <div class="small text-muted">
+      Producto ID: {{ stock()!.id_Producto }}
+    </div>
+  </div>
+
+  <!-- Kardex -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th class="text-end">Cantidad</th>
+          <th class="text-end">Saldo</th>
+          <th>Origen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let k of kardex()">
+          <td>{{ k.fecha | date:'short' }}</td>
+          <td>
+            <span class="badge"
+                  [ngClass]="k.tipo==='Entrada' ? 'bg-success'
+                          : (k.tipo==='Salida' ? 'bg-danger' : 'bg-secondary')">
+              {{ k.tipo }}
+            </span>
+          </td>
+          <td class="text-end">{{ k.cantidad }}</td>
+          <td class="text-end">{{ k.saldo ?? '-' }}</td>
+          <td>{{ k.origen }}</td>
+        </tr>
+        <tr *ngIf="kardex().length === 0">
+          <td colspan="5" class="text-center text-muted">Sin movimientos en el rango indicado</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

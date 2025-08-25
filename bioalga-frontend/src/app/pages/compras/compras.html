@@ -1,1 +1,136 @@
-<p>compras works!</p>
+<div class="container mt-4">
+  <h2 class="mb-3">Gestión de Compras</h2>
+
+  <!-- ENCABEZADO -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <form [formGroup]="formEnc" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Proveedor ID</label>
+          <input type="number" class="form-control" formControlName="proveedor_Id">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Proveedor (texto)</label>
+          <input type="text" class="form-control" placeholder="Compra sin proveedor formal" formControlName="proveedor_Texto">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Notas</label>
+          <input type="text" class="form-control" formControlName="notas">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Usuario ID</label>
+          <input type="number" class="form-control" formControlName="id_Usuario">
+        </div>
+        <div class="col-md-3">
+          <button type="button" class="btn btn-success w-100" (click)="crearBorrador()" [disabled]="cargando()">
+            <i class="bi bi-plus-square"></i> Crear borrador
+          </button>
+        </div>
+
+        <div class="col-md-7 text-md-end" *ngIf="compra()">
+          <div class="totales">
+            <span class="badge bg-secondary me-1">Subtotal: $ {{ subtotal | number:'1.2-2' }}</span>
+            <span class="badge bg-info text-dark me-1">IVA: $ {{ impuestos | number:'1.2-2' }}</span>
+            <span class="badge bg-success">Total: $ {{ total | number:'1.2-2' }}</span>
+          </div>
+          <div class="mt-2">
+            <span class="badge" [ngClass]="(compra()?.estado==='Confirmada') ? 'bg-success' : 'bg-warning'">
+              {{ compra()?.estado || 'Borrador' }}
+            </span>
+            <small class="text-muted ms-2">Compra #{{ compra()?.id_Compra }}</small>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RENGLÓN -->
+  <div class="card mb-3" *ngIf="compra()">
+    <div class="card-header">Agregar renglón</div>
+    <div class="card-body">
+      <form [formGroup]="formRen" class="row g-3 align-items-end">
+        <div class="col-md-6 position-relative">
+          <label class="form-label">Producto (nombre/SKU/código)</label>
+          <input type="text" class="form-control" formControlName="busqueda"
+                 (focus)="showSugerencias.set(true)" autocomplete="off" placeholder="Ej. ESP32, HC-SR04, 750123...">
+          <!-- Sugerencias -->
+          <ul class="list-group sugerencias" *ngIf="showSugerencias() && sugerencias().length">
+            <li class="list-group-item d-flex justify-content-between align-items-center"
+                *ngFor="let s of sugerencias()" (click)="elegirProducto(s)">
+              <span>{{ s.nombre }}</span>
+              <span class="badge text-bg-light">SKU: {{ s.sku }}</span>
+            </li>
+          </ul>
+          <input type="hidden" formControlName="id_Producto">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Cantidad</label>
+          <input type="number" min="1" class="form-control" formControlName="cantidad">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Costo Unitario</label>
+          <input type="number" min="0" step="0.01" class="form-control" formControlName="costo_Unitario">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">IVA Unitario</label>
+          <input type="number" min="0" step="0.01" class="form-control" formControlName="iva_Unitario">
+        </div>
+
+        <div class="col-md-3">
+          <button type="button" class="btn btn-primary w-100" (click)="agregarRenglon()" [disabled]="cargando()">
+            <i class="bi bi-cart-plus"></i> Agregar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DETALLES -->
+  <div class="table-responsive" *ngIf="compra()">
+    <table class="table table-bordered table-striped table-hover align-middle">
+      <thead class="table-dark">
+      <tr>
+        <th>ID Detalle</th>
+        <th>Producto</th>
+        <th>SKU</th>
+        <th class="text-end">Cantidad</th>
+        <th class="text-end">Costo</th>
+        <th class="text-end">IVA</th>
+        <th class="text-end">Total</th>
+        <th class="text-center">Acciones</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr *ngFor="let d of compra()!.detalles">
+        <td>{{ d.id_Detalle }}</td>
+        <td>{{ d.producto || ('#' + d.id_Producto) }}</td>
+        <td><span class="badge text-bg-light">{{ d.sku || '-' }}</span></td>
+        <td class="text-end">{{ d.cantidad }}</td>
+        <td class="text-end">{{ d.costo_Unitario | number:'1.2-2' }}</td>
+        <td class="text-end">{{ d.iva_Unitario | number:'1.2-2' }}</td>
+        <td class="text-end">{{ (d.cantidad * (d.costo_Unitario + d.iva_Unitario)) | number:'1.2-2' }}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-danger" (click)="eliminarRenglon(d)" title="Eliminar">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+      <tr *ngIf="!compra()!.detalles || !compra()!.detalles.length">
+        <td colspan="8" class="text-center text-muted">Agrega renglones a esta compra</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ACCIONES -->
+  <div class="d-flex justify-content-end gap-2" *ngIf="compra()">
+    <button class="btn btn-outline-secondary" [disabled]="cargando()" (click)="formRen.reset({ busqueda: '', id_Producto: null, cantidad: 1, costo_Unitario: 0, iva_Unitario: 0 })">
+      Limpiar renglón
+    </button>
+    <button class="btn btn-success" [disabled]="cargando()" (click)="confirmar()">
+      <i class="bi bi-check2-circle"></i> Confirmar compra
+    </button>
+  </div>
+</div>
