@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators'; // NUEVO
 import { environment } from '../../environments/environment';
+
 import { PagedResponse } from '../models/paged-response.model';
 import { ProductoDto, CrearProductoDto, ActualizarProductoDto } from '../models/producto.model';
+import { ProductoLookupDto } from '../models/producto-lookup.model'; // NUEVO
 
 @Injectable({ providedIn: 'root' })
 export class ProductosService {
@@ -57,5 +60,35 @@ export class ProductosService {
   // DELETE /api/productos/{id}
   eliminar(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  // =========================
+  // NUEVO: Lookups para POS
+  // =========================
+
+  /** Sugerencias rápidas por nombre/SKU/código de barras (usa /api/productos/lookup) */
+  buscarLookups(q: string, take: number = 10): Observable<ProductoLookupDto[]> {
+    const params = new HttpParams().set('q', q).set('take', take);
+    return this.http.get<ProductoLookupDto[]>(`${this.baseUrl}/lookup`, { params });
+  }
+
+  /** Buscar rápido por SKU (si no tienes endpoint dedicado, usa listado y toma el primero) */
+  buscarPorSku(sku: string): Observable<ProductoDto | null> {
+    // Si implementas endpoint dedicado:
+    // return this.http.get<ProductoDto>(`${this.baseUrl}/por-sku/${encodeURIComponent(sku)}`);
+    const params = new HttpParams().set('q', sku).set('pageSize', 1);
+    return this.http
+      .get<PagedResponse<ProductoDto>>(this.baseUrl, { params })
+      .pipe(map(r => (r.items && r.items.length ? r.items[0] : null)));
+  }
+
+  /** Buscar rápido por código de barras (misma idea que SKU) */
+  buscarPorCodigoBarras(codigo: string): Observable<ProductoDto | null> {
+    // Si implementas endpoint dedicado:
+    // return this.http.get<ProductoDto>(`${this.baseUrl}/por-codigo/${encodeURIComponent(codigo)}`);
+    const params = new HttpParams().set('q', codigo).set('pageSize', 1);
+    return this.http
+      .get<PagedResponse<ProductoDto>>(this.baseUrl, { params })
+      .pipe(map(r => (r.items && r.items.length ? r.items[0] : null)));
   }
 }

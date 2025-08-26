@@ -15,6 +15,9 @@ import { ComprasPageComponent } from './pages/compras/compras';
 import { StockPageComponent } from './pages/inventario/stock/stock';
 // import { DashboardPageComponent } from './pages/dashboard/dashboard';
 
+// ✅ NUEVO: Ventas (POS)
+import { VentasPageComponent } from './pages/ventas/ventas';
+
 export const routes: Routes = [
   // Ruta por defecto → login
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -48,10 +51,13 @@ export const routes: Routes = [
           { path: 'stock', component: StockPageComponent }, // Kardex / stock actual
         ]
       },
+
+      // ✅ NUEVO: Ventas (POS)
+      { path: 'ventas', component: VentasPageComponent },
+      { path: 'pos', redirectTo: 'ventas' }, // alias cómodo
     ]
   },
 
   // Cualquier otra ruta → login
   { path: '**', redirectTo: 'login' }
 ];
-

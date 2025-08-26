@@ -88,6 +88,11 @@ builder.Services.AddScoped<ICompraService, CompraService>();
 builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
 // (Si luego agregas un servicio de inventario de más alto nivel, lo registras aquí)
 
+// ======== NUEVO: Ventas / Devoluciones / Caja ========  // <-- NUEVO
+builder.Services.AddScoped<IVentaService, VentaService>();          // <-- NUEVO
+builder.Services.AddScoped<IDevolucionService, DevolucionService>(); // <-- NUEVO
+builder.Services.AddScoped<ICajaService, CajaService>();             // <-- NUEVO
+
 // ===============================
 // CORS (Angular)
 // ===============================

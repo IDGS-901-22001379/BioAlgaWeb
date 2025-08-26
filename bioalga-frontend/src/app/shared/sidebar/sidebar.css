@@ -58,3 +58,24 @@ nav a.active {
   width: 20px;
   height: 20px;
 }
+
+.bottom {
+  margin-top: auto;
+  padding: 10px 15px;
+}
+
+.btn-logout {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.12);
+  color: white;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-logout:hover {
+  background: rgba(255,255,255,0.2);
+}

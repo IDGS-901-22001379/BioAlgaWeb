@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import Swal from 'sweetalert2';
+import { NgIf, NgForOf, NgClass, DatePipe } from '@angular/common';
 
 import { ProductosService } from '../../services/productos.service';
 import { PreciosService } from '../../services/precios.service';

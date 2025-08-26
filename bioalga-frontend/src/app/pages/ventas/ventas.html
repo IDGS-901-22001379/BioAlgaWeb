@@ -1,1 +1,294 @@
-<p>ventas works!</p>
+<div class="container-fluid mt-3 ventas-container">
+  <div class="row">
+
+    <!-- ===================== LADO IZQUIERDO: BÚSQUEDA + GRID ===================== -->
+    <div class="col-lg-8 mb-3">
+
+      <!-- BUSCADOR -->
+      <div class="card mb-3">
+        <div class="card-body position-relative">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Busca por SKU, código o nombre…"
+              [formControl]="formBuscar.controls['q']"
+              (focus)="showSugerencias.set(true)"
+              autocomplete="off"
+            />
+
+            <button class="btn btn-outline-secondary" type="button" (click)="limpiarBusqueda()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+            <button class="btn btn-outline-primary" type="button" (click)="forzarBusqueda()">
+              Buscar
+            </button>
+            <button class="btn btn-outline-dark" type="button" title="Lector de código" (click)="focusInput()">
+              <i class="bi bi-upc-scan"></i>
+            </button>
+          </div>
+
+          <!-- SUGERENCIAS -->
+          <ul
+            class="list-group sugerencias mt-2 position-absolute w-100"
+            style="z-index: 10;"
+            *ngIf="showSugerencias() && sugerencias().length"
+          >
+            <li
+              class="list-group-item d-flex justify-content-between align-items-center"
+              *ngFor="let s of sugerencias()"
+              (click)="elegirProducto(s)"
+            >
+              <div class="d-flex flex-column">
+                <strong>{{ s.nombre }}</strong>
+                <small class="text-muted">
+                  SKU: {{ s.sku }} • {{ s.codigoBarras || 'sin código' }}
+                </small>
+              </div>
+              <span class="badge text-bg-light">#{{ s.id_Producto }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- GRID DE RESULTADOS / ATAJOS -->
+      <div class="row g-3">
+        <div class="col-md-4" *ngFor="let p of resultados()">
+          <div class="card h-100 producto-card" (click)="agregarProductoRapido(p)">
+            <div class="card-body d-flex flex-column justify-content-between">
+              <div>
+                <h6 class="card-title text-truncate">{{ p.nombre }}</h6>
+                <div class="small text-muted">SKU: {{ p.sku }}</div>
+                <div class="small text-muted">Existencia aprox.: {{ p.stock ?? 0 }}</div>
+              </div>
+              <div class="d-flex justify-content-between align-items-end mt-2">
+                <!-- IMPORTANTE: agrupar (p.precio ?? 0) ANTES del pipe number -->
+                <span class="fs-5 fw-semibold">$ {{ (p.precio ?? 0) | number:'1.2-2' }}</span>
+                <button
+                  class="btn btn-sm btn-primary"
+                  (click)="agregarProductoRapido(p); $event.stopPropagation()"
+                >
+                  <i class="bi bi-cart-plus"></i> Agregar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="!resultados().length" class="text-center text-muted py-4">
+          Empieza buscando un producto arriba o escanea un código.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== LADO DERECHO: CARRITO / COBRO / DEVOLUCIONES ===================== -->
+    <div class="col-lg-4">
+
+      <!-- CLIENTE + MÉTODO PAGO -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <form [formGroup]="formVenta" class="row g-2 align-items-end">
+            <div class="col-12">
+              <label class="form-label">Cliente (opcional)</label>
+              <input type="number" class="form-control" formControlName="clienteId" placeholder="ID cliente (o vacío)">
+              <div class="form-text">
+                Usa el tipo de cliente para precio: Normal / Mayoreo / Descuento / Especial.
+              </div>
+
+              <!-- Info de cliente y tipo de precio detectado -->
+              <div class="mt-2">
+                <small class="text-muted">
+                  Tipo de precio:
+                  <span class="badge bg-secondary">{{ formVenta.value.tipoPrecio }}</span>
+                  <ng-container *ngIf="clienteDetectado() as c">
+                    • Cliente:
+                    <b>{{ c.nombre }} {{ c.apellido_Paterno }} {{ c.apellido_Materno }}</b>
+                    (<span class="text-lowercase">{{ c.tipo_Cliente }}</span>)
+                  </ng-container>
+                </small>
+              </div>
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">Método de pago</label>
+              <select class="form-select" formControlName="metodoPago">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Mixto">Mixto</option>
+              </select>
+            </div>
+
+            <div class="col-6" *ngIf="formVenta.value.metodoPago === 'Efectivo' || formVenta.value.metodoPago === 'Mixto'">
+              <label class="form-label">Efectivo recibido</label>
+              <input type="number" min="0" step="0.01" class="form-control" formControlName="efectivoRecibido">
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">IVA %</label>
+              <select class="form-select" formControlName="ivaPct">
+                <option [ngValue]="0">0%</option>
+                <option [ngValue]="8">8%</option>
+                <option [ngValue]="16">16%</option>
+              </select>
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">Tipo precio</label>
+              <select class="form-select" formControlName="tipoPrecio">
+                <option value="Normal">Normal</option>
+                <option value="Mayoreo">Mayoreo</option>
+                <option value="Descuento">Descuento</option>
+                <option value="Especial">Especial</option>
+              </select>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- CARRITO -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Carrito</strong>
+          <button class="btn btn-sm btn-outline-danger" (click)="vaciarCarrito()" [disabled]="!lineas().length">
+            <i class="bi bi-trash"></i> Vaciar
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Nombre</th>
+                <th class="text-center">Cant</th>
+                <th class="text-end">P.Unit</th>
+                <th class="text-end">Desc/U</th>
+                <th class="text-end">IVA/U</th>
+                <th class="text-end">Importe</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let l of lineas(); let i = index">
+                <td class="text-truncate" style="max-width:160px">{{ l.nombre || ('#'+l.idProducto) }}</td>
+                <td class="text-center">
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, -1)" [disabled]="l.cantidad<=1"><i class="bi bi-dash"></i></button>
+                    <button class="btn btn-outline-secondary disabled">{{ l.cantidad }}</button>
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, +1)"><i class="bi bi-plus"></i></button>
+                  </div>
+                </td>
+                <td class="text-end">
+                  <input
+                    type="number"
+                    class="form-control form-control-sm text-end"
+                    [(ngModel)]="l.precioUnitario"
+                    [ngModelOptions]="{standalone:true}"
+                    (change)="recalcular()"
+                  />
+                </td>
+                <td class="text-end">
+                  <input
+                    type="number"
+                    class="form-control form-control-sm text-end"
+                    [(ngModel)]="l.descuentoUnitario"
+                    [ngModelOptions]="{standalone:true}"
+                    (change)="recalcular()"
+                  />
+                </td>
+                <td class="text-end">
+                  <input
+                    type="number"
+                    class="form-control form-control-sm text-end"
+                    [(ngModel)]="l.ivaUnitario"
+                    [ngModelOptions]="{standalone:true}"
+                    (change)="recalcular()"
+                  />
+                </td>
+                <td class="text-end">
+                  {{ (l.cantidad * (l.precioUnitario - l.descuentoUnitario + l.ivaUnitario)) | number:'1.2-2' }}
+                </td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-danger" (click)="eliminarLinea(i)">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="!lineas().length">
+                <td colspan="7" class="text-center text-muted py-3">Agrega productos al carrito</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-footer">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Subtotal</span>
+            <strong>$ {{ (subtotal() | number:'1.2-2') }}</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Impuestos</span>
+            <strong>$ {{ (impuestos() | number:'1.2-2') }}</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="fs-5">Total</span>
+            <span class="fs-5 fw-bold">$ {{ (total() | number:'1.2-2') }}</span>
+          </div>
+
+          <div class="mt-2" *ngIf="formVenta.value.metodoPago === 'Efectivo' || formVenta.value.metodoPago === 'Mixto'">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Cambio</span>
+              <strong class="text-success">$ {{ (cambio() | number:'1.2-2') }}</strong>
+            </div>
+          </div>
+
+          <button class="btn btn-success w-100 mt-3" (click)="cobrar()" [disabled]="!lineas().length || cargando()">
+            <i class="bi bi-cash-coin"></i> Cobrar
+          </button>
+        </div>
+      </div>
+
+      <!-- DEVOLUCIONES RÁPIDAS -->
+      <div class="card">
+        <div class="card-header">
+          <strong>Devolución rápida</strong>
+        </div>
+        <div class="card-body">
+          <form [formGroup]="formDev" class="row g-2 align-items-end">
+            <div class="col-4">
+              <label class="form-label">Venta #</label>
+              <input type="number" class="form-control" formControlName="idVenta">
+            </div>
+            <div class="col-8">
+              <label class="form-label">Motivo</label>
+              <input type="text" class="form-control" formControlName="motivo" placeholder="daño, error, garantía…">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Id Producto</label>
+              <input type="number" class="form-control" formControlName="idProducto">
+            </div>
+            <div class="col-3">
+              <label class="form-label">Cant</label>
+              <input type="number" min="1" class="form-control" formControlName="cantidad">
+            </div>
+            <div class="col-3">
+              <label class="form-label">IVA/U</label>
+              <input type="number" min="0" step="0.01" class="form-control" formControlName="ivaUnitario">
+            </div>
+            <div class="col-6 form-check ms-2">
+              <input class="form-check-input" type="checkbox" formControlName="reingresaInventario" id="chkReingresa">
+              <label class="form-check-label" for="chkReingresa">Reingresa a inventario</label>
+            </div>
+            <div class="col-6 text-end">
+              <button class="btn btn-outline-primary" type="button" (click)="registrarDevolucion()" [disabled]="cargando()">
+                Registrar devolución
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

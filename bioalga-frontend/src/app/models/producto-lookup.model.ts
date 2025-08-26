@@ -6,4 +6,7 @@ export interface ProductoLookupDto {
   sku: string;
   codigo_Barras?: string | null;
   estatus: 'Activo' | 'Inactivo' | string;
+  codigoBarras?: string | null;
+  precio?: number;  // si tu /lookup ya lo trae
+  stock?: number;
 }

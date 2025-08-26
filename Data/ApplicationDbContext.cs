@@ -1,6 +1,7 @@
 // Data/ApplicationDbContext.cs
 using BioAlga.Backend.Models;
 using Microsoft.EntityFrameworkCore;
+using BioAlga.Backend.Models.Enums; // <-- NUEVO (para los enums)
 
 namespace BioAlga.Backend.Data
 {
@@ -25,6 +26,19 @@ namespace BioAlga.Backend.Data
         public DbSet<Compra> Compras { get; set; } = null!;
         public DbSet<DetalleCompra> DetalleCompras { get; set; } = null!;
         public DbSet<InventarioMovimiento> InventarioMovimientos { get; set; } = null!;
+
+        // ======= NUEVOS DbSets (Ventas / Devoluciones / Caja) =======
+        public DbSet<Venta> Ventas { get; set; } = null!;
+        public DbSet<DetalleVenta> DetalleVentas { get; set; } = null!;
+
+        public DbSet<Devolucion> Devoluciones { get; set; } = null!;
+        public DbSet<DetalleDevolucion> DetalleDevoluciones { get; set; } = null!;
+
+        public DbSet<CajaApertura> CajaAperturas { get; set; } = null!;
+        public DbSet<CajaMovimiento> CajaMovimientos { get; set; } = null!;
+        public DbSet<CajaCorte> CajaCortes { get; set; } = null!;
+
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -530,6 +544,158 @@ namespace BioAlga.Backend.Data
                 e.HasIndex(m => new { m.OrigenTipo, m.OrigenId }).HasDatabaseName("idx_mov_origen");
                 e.HasIndex(m => new { m.IdProducto, m.Fecha }).HasDatabaseName("idx_mov_prod_fecha");
             });
+
+            // ============================================
+            // VENTAS (nuevo)
+            // ============================================
+            modelBuilder.Entity<Venta>(e =>
+            {
+                e.ToTable("ventas");
+
+                e.HasKey(x => x.IdVenta);
+                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+
+                e.Property(x => x.ClienteId).HasColumnName("cliente_id");
+                e.Property(x => x.FechaVenta).HasColumnName("fecha_venta");
+
+                e.Property(x => x.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
+
+                e.Property(x => x.EfectivoRecibido).HasColumnName("efectivo_recibido").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Cambio).HasColumnName("cambio").HasColumnType("decimal(12,2)");
+                e.Property(x => x.MetodoPago).HasConversion<string>().HasColumnName("metodo_pago");
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+                e.Property(x => x.Estatus).HasConversion<string>().HasColumnName("estatus");
+
+                e.HasMany(x => x.Detalle)
+                 .WithOne(d => d.Venta)
+                 .HasForeignKey(d => d.IdVenta)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.FechaVenta).HasDatabaseName("idx_venta_fecha");
+            });
+
+            modelBuilder.Entity<DetalleVenta>(e =>
+            {
+                e.ToTable("detalle_venta");
+
+                e.HasKey(x => x.IdDetalle);
+                e.Property(x => x.IdDetalle).HasColumnName("id_detalle");
+
+                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+                e.Property(x => x.IdProducto).HasColumnName("id_producto");
+
+                e.Property(x => x.Cantidad).HasColumnName("cantidad");
+                e.Property(x => x.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)");
+                e.Property(x => x.DescuentoUnitario).HasColumnName("descuento_unitario").HasColumnType("decimal(10,2)");
+                e.Property(x => x.IvaUnitario).HasColumnName("iva_unitario").HasColumnType("decimal(10,2)");
+            });
+
+
+            // ============================================
+            // DEVOLUCIONES (nuevo)
+            // ============================================
+            modelBuilder.Entity<Devolucion>(e =>
+            {
+                e.ToTable("devoluciones");
+
+                e.HasKey(x => x.IdDevolucion);
+                e.Property(x => x.IdDevolucion).HasColumnName("id_devolucion");
+
+                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+                e.Property(x => x.Fecha).HasColumnName("fecha");
+                e.Property(x => x.Motivo).HasColumnName("motivo").HasMaxLength(120);
+                e.Property(x => x.ReingresaInventario).HasColumnName("reingresa_inventario");
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+
+                e.Property(x => x.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
+
+                e.HasOne(x => x.Venta)
+                 .WithMany()
+                 .HasForeignKey(x => x.IdVenta)
+                 .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<DetalleDevolucion>(e =>
+            {
+                e.ToTable("detalle_devolucion");
+
+                e.HasKey(x => x.IdDetalle);
+                e.Property(x => x.IdDetalle).HasColumnName("id_detalle");
+
+                e.Property(x => x.IdDevolucion).HasColumnName("id_devolucion");
+                e.Property(x => x.IdProducto).HasColumnName("id_producto");
+
+                e.Property(x => x.Cantidad).HasColumnName("cantidad");
+                e.Property(x => x.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)");
+                e.Property(x => x.IvaUnitario).HasColumnName("iva_unitario").HasColumnType("decimal(10,2)");
+
+                e.HasOne(x => x.Devolucion)
+                 .WithMany(d => d.Detalle)
+                 .HasForeignKey(x => x.IdDevolucion)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+
+            // ============================================
+            // CAJA (Aperturas / Movimientos / Cortes) (nuevo)
+            // ============================================
+            modelBuilder.Entity<CajaApertura>(e =>
+            {
+                e.ToTable("caja_aperturas");
+
+                e.HasKey(x => x.IdCajaApertura);
+                e.Property(x => x.IdCajaApertura).HasColumnName("id_caja_apertura");
+
+                e.Property(x => x.FechaApertura).HasColumnName("fecha_apertura");
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+                e.Property(x => x.FondoInicial).HasColumnName("fondo_inicial").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Activa).HasColumnName("activa");
+            });
+
+            modelBuilder.Entity<CajaMovimiento>(e =>
+            {
+                e.ToTable("caja_movimientos");
+
+                e.HasKey(x => x.IdCajaMovimiento);
+                e.Property(x => x.IdCajaMovimiento).HasColumnName("id_caja_movimiento");
+
+                e.Property(x => x.IdCajaApertura).HasColumnName("id_caja_apertura");
+                e.Property(x => x.Fecha).HasColumnName("fecha");
+                e.Property(x => x.Tipo).HasConversion<string>().HasColumnName("tipo");
+                e.Property(x => x.Concepto).HasColumnName("concepto").HasMaxLength(180);
+                e.Property(x => x.MontoEfectivo).HasColumnName("monto_efectivo").HasColumnType("decimal(12,2)");
+                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+
+                e.HasOne(x => x.CajaApertura).WithMany().HasForeignKey(x => x.IdCajaApertura);
+                e.HasOne(x => x.Venta).WithMany().HasForeignKey(x => x.IdVenta).OnDelete(DeleteBehavior.SetNull);
+
+                e.HasIndex(x => x.Fecha).HasDatabaseName("idx_caja_mov_fecha");
+            });
+
+            modelBuilder.Entity<CajaCorte>(e =>
+            {
+                e.ToTable("caja_cortes");
+
+                e.HasKey(x => x.IdCajaCorte);
+                e.Property(x => x.IdCajaCorte).HasColumnName("id_caja_corte");
+
+                e.Property(x => x.IdCajaApertura).HasColumnName("id_caja_apertura");
+                e.Property(x => x.FechaCorte).HasColumnName("fecha_corte");
+
+                e.Property(x => x.TotalEfectivoEsperado).HasColumnName("total_efectivo_esperado").HasColumnType("decimal(12,2)");
+                e.Property(x => x.TotalEfectivoContado).HasColumnName("total_efectivo_contado").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Diferencia).HasColumnName("diferencia").HasColumnType("decimal(12,2)");
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+
+                e.HasOne(x => x.CajaApertura).WithMany().HasForeignKey(x => x.IdCajaApertura);
+            });
+
+
 
             // NOTA: si más adelante deseas mapear la vista vw_producto_precio_vigente,
             // crea una entidad keyless (HasNoKey) y usa ToView("vw_producto_precio_vigente").

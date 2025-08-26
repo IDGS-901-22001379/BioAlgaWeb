@@ -25,20 +25,21 @@ namespace BioAlga.Backend.Controllers
         // ----------------------------------------------------
         //  STOCK ACTUAL
         //  GET /api/inventario/stock-actual?producto_id=123
+        //  (compat: devuelve stock_Actual y stock)
         // ----------------------------------------------------
         [HttpGet("stock-actual")]
-        public async Task<ActionResult<StockActualResponse>> StockActual(
+        public async Task<ActionResult<object>> StockActual(
             [FromQuery(Name = "producto_id")] int productoId,
             CancellationToken ct = default)
         {
             var stock = await CalcularStockAsync(productoId, ct);
 
-            var res = new StockActualResponse
+            return Ok(new
             {
-                Id_Producto = productoId,
-                Stock = stock
-            };
-            return Ok(res);
+                id_Producto = productoId,
+                stock_Actual = stock,
+                stock = stock
+            });
         }
 
         // ----------------------------------------------------
@@ -52,11 +53,11 @@ namespace BioAlga.Backend.Controllers
             [FromQuery] DateTime? hasta,
             CancellationToken ct = default)
         {
-            var q = _db.Set<InventarioMovimiento>()
+            var q = _db.InventarioMovimientos
                        .Where(m => m.IdProducto == productoId);
 
             if (desde.HasValue) q = q.Where(m => m.Fecha >= desde.Value);
-            if (hasta.HasValue) q = q.Where(m => m.Fecha <= hasta.Value.AddDays(1).AddTicks(-1));
+            if (hasta.HasValue) q = q.Where(m => m.Fecha <= hasta.Value.Date.AddDays(1).AddTicks(-1));
 
             var items = await q
                 .OrderBy(m => m.Fecha)
@@ -64,12 +65,12 @@ namespace BioAlga.Backend.Controllers
                 {
                     Fecha    = m.Fecha,
                     Tipo     = m.TipoMovimiento, // "Entrada" | "Salida" | "Ajuste"
-                    Cantidad = m.TipoMovimiento == nameof(TipoMovimiento.Salida) ? -m.Cantidad : m.Cantidad,
+                    Cantidad = m.TipoMovimiento == "Salida" ? -m.Cantidad : m.Cantidad,
                     Origen   = $"{m.OrigenTipo}{(m.OrigenId != null ? $" #{m.OrigenId}" : "")}"
                 })
                 .ToListAsync(ct);
 
-            // Saldo acumulado
+            // Saldo acumulado en memoria
             int saldo = 0;
             foreach (var it in items)
             {
@@ -93,10 +94,11 @@ namespace BioAlga.Backend.Controllers
             if (dto is null) return BadRequest("Payload requerido.");
             if (dto.Cantidad <= 0) return BadRequest("La cantidad debe ser mayor que cero.");
 
-            var prod = await _db.Set<Producto>()
+            var prod = await _db.Productos
                                 .Where(p => p.IdProducto == dto.Id_Producto)
                                 .Select(p => new { p.IdProducto, p.Estatus })
                                 .FirstOrDefaultAsync(ct);
+
             if (prod is null) return NotFound("Producto no encontrado.");
             if (string.Equals(prod.Estatus, "Inactivo", StringComparison.OrdinalIgnoreCase))
                 return BadRequest("El producto está inactivo.");
@@ -104,31 +106,31 @@ namespace BioAlga.Backend.Controllers
             var mov = new InventarioMovimiento
             {
                 IdProducto     = dto.Id_Producto,
-                TipoMovimiento = nameof(TipoMovimiento.Entrada),
+                TipoMovimiento = "Entrada",
                 Cantidad       = dto.Cantidad,
                 Fecha          = DateTime.UtcNow,
-                OrigenTipo     = nameof(OrigenMovimiento.Ajuste),
+                OrigenTipo     = "Ajuste",
                 OrigenId       = null,
                 IdUsuario      = dto.Id_Usuario,
                 Referencia     = string.IsNullOrWhiteSpace(dto.Motivo) ? null : dto.Motivo!.Trim()
             };
 
-            await _db.Set<InventarioMovimiento>().AddAsync(mov, ct);
+            _db.InventarioMovimientos.Add(mov);
             await _db.SaveChangesAsync(ct);
 
             var stockDespues = await CalcularStockAsync(dto.Id_Producto, ct);
 
             return Ok(new MovimientoResultDto
             {
-                Id_Movimiento  = mov.IdMovimiento,
-                Id_Producto    = mov.IdProducto,
-                Tipo_Movimiento= mov.TipoMovimiento,
-                Cantidad       = mov.Cantidad,
-                Fecha          = mov.Fecha,
-                Origen_Tipo    = mov.OrigenTipo,
-                Origen_Id      = mov.OrigenId,
-                Referencia     = mov.Referencia,
-                Stock_Despues  = stockDespues
+                Id_Movimiento   = mov.IdMovimiento,
+                Id_Producto     = mov.IdProducto,
+                Tipo_Movimiento = mov.TipoMovimiento,
+                Cantidad        = mov.Cantidad,
+                Fecha           = mov.Fecha,
+                Origen_Tipo     = mov.OrigenTipo,
+                Origen_Id       = mov.OrigenId,
+                Referencia      = mov.Referencia,
+                Stock_Despues   = stockDespues
             });
         }
 
@@ -145,8 +147,7 @@ namespace BioAlga.Backend.Controllers
             if (dto is null) return BadRequest("Payload requerido.");
             if (dto.Cantidad <= 0) return BadRequest("La cantidad debe ser mayor que cero.");
 
-            var existe = await _db.Set<Producto>()
-                                  .AnyAsync(p => p.IdProducto == dto.Id_Producto, ct);
+            var existe = await _db.Productos.AnyAsync(p => p.IdProducto == dto.Id_Producto, ct);
             if (!existe) return NotFound("Producto no encontrado.");
 
             var stockActual = await CalcularStockAsync(dto.Id_Producto, ct);
@@ -156,43 +157,49 @@ namespace BioAlga.Backend.Controllers
             var mov = new InventarioMovimiento
             {
                 IdProducto     = dto.Id_Producto,
-                TipoMovimiento = nameof(TipoMovimiento.Salida),
+                TipoMovimiento = "Salida",
                 Cantidad       = dto.Cantidad,
                 Fecha          = DateTime.UtcNow,
-                OrigenTipo     = nameof(OrigenMovimiento.Ajuste),
+                OrigenTipo     = "Ajuste",
                 OrigenId       = null,
                 IdUsuario      = dto.Id_Usuario,
                 Referencia     = string.IsNullOrWhiteSpace(dto.Motivo) ? null : dto.Motivo!.Trim()
             };
 
-            await _db.Set<InventarioMovimiento>().AddAsync(mov, ct);
+            _db.InventarioMovimientos.Add(mov);
             await _db.SaveChangesAsync(ct);
 
             var stockDespues = await CalcularStockAsync(dto.Id_Producto, ct);
 
             return Ok(new MovimientoResultDto
             {
-                Id_Movimiento  = mov.IdMovimiento,
-                Id_Producto    = mov.IdProducto,
-                Tipo_Movimiento= mov.TipoMovimiento,
-                Cantidad       = mov.Cantidad,
-                Fecha          = mov.Fecha,
-                Origen_Tipo    = mov.OrigenTipo,
-                Origen_Id      = mov.OrigenId,
-                Referencia     = mov.Referencia,
-                Stock_Despues  = stockDespues
+                Id_Movimiento   = mov.IdMovimiento,
+                Id_Producto     = mov.IdProducto,
+                Tipo_Movimiento = mov.TipoMovimiento,
+                Cantidad        = mov.Cantidad,
+                Fecha           = mov.Fecha,
+                Origen_Tipo     = mov.OrigenTipo,
+                Origen_Id       = mov.OrigenId,
+                Referencia      = mov.Referencia,
+                Stock_Despues   = stockDespues
             });
         }
 
         // ----------------------------------------------------
-        //  Helper: cálculo de stock
+        //  Helper: cálculo de stock (evita ternarios complejos)
         // ----------------------------------------------------
         private async Task<int> CalcularStockAsync(int productoId, CancellationToken ct)
         {
-            return await _db.Set<InventarioMovimiento>()
-                .Where(m => m.IdProducto == productoId)
-                .Select(m => m.TipoMovimiento == nameof(TipoMovimiento.Salida) ? -m.Cantidad : m.Cantidad)
-                .SumAsync(ct);
+            // Sumamos por separado y coalescemos a 0 para evitar excepciones en secuencias vacías.
+            var entradas = await _db.InventarioMovimientos
+                .Where(m => m.IdProducto == productoId && m.TipoMovimiento == "Entrada")
+                .SumAsync(m => (int?)m.Cantidad, ct) ?? 0;
+
+            var salidas = await _db.InventarioMovimientos
+                .Where(m => m.IdProducto == productoId && m.TipoMovimiento == "Salida")
+                .SumAsync(m => (int?)m.Cantidad, ct) ?? 0;
+
+            return entradas - salidas;
         }
     }
 }

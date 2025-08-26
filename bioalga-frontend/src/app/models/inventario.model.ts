@@ -1,10 +1,10 @@
 // src/app/models/inventario.model.ts
 
-// Tipos base
+// ===== Tipos base =====
 export type TipoMovimiento = 'Entrada' | 'Salida' | 'Ajuste';
 export type OrigenMovimiento = 'Compra' | 'Venta' | 'Pedido' | 'Ajuste' | 'Devolucion';
 
-// Entidad de movimiento (cuando listamos movimientos crudos)
+// ===== Entidad de movimiento (cuando listamos movimientos crudos) =====
 export interface InventarioMovimiento {
   id_Movimiento: number;
   id_Producto: number;
@@ -17,20 +17,26 @@ export interface InventarioMovimiento {
   referencia?: string | null;
 }
 
-// Respuesta de Kardex (ordenado por fecha, con saldo si el backend lo calcula)
+// ===== Respuesta de Kardex (ordenado por fecha, con saldo si el backend lo calcula) =====
 export interface KardexItem {
   fecha: string;                 // ISO
-  tipo: TipoMovimiento;          // Entrada/Salida/Ajuste
-  cantidad: number;              // Salida suele venir negativa
-  saldo?: number;                // opcional si backend lo calcula
-  origen: string;                // "Compra #12", "Ajuste #—", etc.
+  tipo: TipoMovimiento;          // 'Entrada' | 'Salida' | 'Ajuste'
+  cantidad: number;              // En salidas, puede venir negativa
+  saldo?: number;                // Opcional si backend lo calcula
+  origen: string;                // Ej: "Compra #12", "Ajuste", etc.
 }
 
-// Respuesta de stock actual
+// ===== Respuesta de stock actual =====
+// El backend puede devolver 'stock_Actual' y/o 'stock' (compatibilidad)
 export interface StockResponse {
   id_Producto: number;
-  stock: number;
+  stock_Actual?: number;
+  stock?: number;
 }
+
+// Helper para leer el stock sin preocuparte por la clave usada
+export const readStock = (r?: StockResponse | null): number =>
+  r ? (r.stock_Actual ?? r.stock ?? 0) : 0;
 
 // ===== Ajustes manuales (Agregar/Quitar) =====
 
