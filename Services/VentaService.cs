@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using AutoMapper;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
-
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
@@ -17,171 +11,147 @@ namespace BioAlga.Backend.Services
     public class VentaService : IVentaService
     {
         private readonly ApplicationDbContext _db;
-        private readonly IMapper _mapper;
 
-        public VentaService(ApplicationDbContext db, IMapper mapper)
+        public VentaService(ApplicationDbContext db)
         {
             _db = db;
-            _mapper = mapper;
-        }
-
-        // =========================================================
-        // Helper: calcula stock (Entradas - Salidas) de un producto
-        // SIN usar Contains(ids) ni colecciones primitivas en la query.
-        // =========================================================
-        private async Task<int> GetStockAsync(int idProd, CancellationToken ct = default)
-        {
-            // Usamos int? + ?? 0 para evitar excepción si no hay filas.
-            return await _db.InventarioMovimientos
-                .AsNoTracking()
-                .Where(m => m.IdProducto == idProd)
-                .Select(m => (int?) (m.TipoMovimiento == "Salida" ? -m.Cantidad : m.Cantidad))
-                .SumAsync(ct) ?? 0;
         }
 
         public async Task<VentaDto> RegistrarVentaAsync(int idUsuario, VentaCreateRequest req)
         {
-            if (req.Lineas == null || req.Lineas.Count == 0)
-                throw new ArgumentException("La venta requiere al menos una línea.");
+            // ===== Validaciones de entrada =====
+            if (req.Lineas is null || req.Lineas.Count == 0)
+                throw new ValidationException("La venta debe incluir al menos un producto.");
 
-            var ids = req.Lineas.Select(l => l.IdProducto).Distinct().ToList();
+            if ((req.MetodoPago == MetodoPago.Efectivo || req.MetodoPago == MetodoPago.Mixto) &&
+                req.EfectivoRecibido is null)
+                throw new ValidationException("Efectivo recibido es requerido para método Efectivo/Mixto.");
 
-            // =========================================================
-            // 1) Validar existencia/estatus de productos (sin Contains)
-            //    Se consulta por id, uno por uno.
-            // =========================================================
-            foreach (var idProd in ids)
+            // ===== Preparar venta (cabecera) =====
+            var venta = new Venta
             {
-                var prod = await _db.Productos
-                    .AsNoTracking()
-                    .Where(p => p.IdProducto == idProd)
-                    .Select(p => new { p.IdProducto, p.Estatus })
-                    .FirstOrDefaultAsync();
+                IdUsuario        = idUsuario,
+                ClienteId        = req.ClienteId,
+                FechaVenta       = DateTime.UtcNow,
+                MetodoPago       = req.MetodoPago,
+                EfectivoRecibido = req.EfectivoRecibido,
+                Estatus          = EstatusVenta.Pagada, // ajusta a tu regla si manejas "Pendiente"
+            };
 
-                if (prod is null)
-                    throw new InvalidOperationException($"El producto {idProd} no existe.");
-
-                if (!string.Equals(prod.Estatus, "Activo", StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException($"El producto {idProd} está inactivo.");
-            }
-
-            // =========================================================
-            // 2) Verificar stock disponible (sin Contains)
-            //    Una query por producto usando el helper.
-            // =========================================================
-            var stockPorProd = new Dictionary<int, int>();
-            foreach (var idProd in ids)
-                stockPorProd[idProd] = await GetStockAsync(idProd);
+            // ===== Resolver líneas + validar productos y stock =====
+            decimal subtotal = 0m, impuestos = 0m;
 
             foreach (var l in req.Lineas)
             {
-                var stock = stockPorProd.TryGetValue(l.IdProducto, out var s) ? s : 0;
-                if (stock < l.Cantidad)
-                    throw new InvalidOperationException(
-                        $"Stock insuficiente para el producto {l.IdProducto}. Actual: {stock}");
+                var prod = await _db.Productos
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.IdProducto == l.IdProducto)
+                    ?? throw new ValidationException($"Producto {l.IdProducto} no existe.");
+
+                if (l.Cantidad <= 0)
+                    throw new ValidationException("La cantidad debe ser mayor a 0.");
+
+                // --- Chequeo de stock (existencia aproximada) ---
+                // SUMA(Entrada/Ajuste+) - SUMA(Salida)
+                var existencia = await _db.InventarioMovimientos
+                    .Where(i => i.IdProducto == l.IdProducto)
+                    .SumAsync(i =>
+                        i.TipoMovimiento == nameof(TipoMovimiento.Salida) ? -i.Cantidad :
+                        i.TipoMovimiento == nameof(TipoMovimiento.Entrada) ?  i.Cantidad :
+                        // Ajuste: positivo o negativo según convención. Aquí se asume positivo.
+                        i.Cantidad
+                    );
+
+                if (existencia < l.Cantidad)
+                    throw new ValidationException($"Stock insuficiente para el producto {l.IdProducto}. Existencia: {existencia}");
+
+                // Si el precio viene del front (según tipo de cliente), lo tomamos.
+                // Si prefieres resolverlo aquí con tu tabla producto_precios vigente, hazlo antes.
+                var precioUnit = l.PrecioUnitario;
+
+                var linea = new DetalleVenta
+                {
+                    IdProducto        = l.IdProducto,
+                    Cantidad          = l.Cantidad,
+                    PrecioUnitario    = precioUnit,
+                    DescuentoUnitario = l.DescuentoUnitario,
+                    IvaUnitario       = l.IvaUnitario
+                };
+
+                venta.Detalle.Add(linea);
+
+                // Totales
+                var baseLinea = (precioUnit - l.DescuentoUnitario) * l.Cantidad;
+                subtotal  += baseLinea;
+                impuestos += (l.IvaUnitario * l.Cantidad);
             }
 
-            // =========================================================
-            // 3) Totales
-            // =========================================================
-            decimal subtotal  = req.Lineas.Sum(l => (l.PrecioUnitario - l.DescuentoUnitario) * l.Cantidad);
-            decimal impuestos = req.Lineas.Sum(l => l.IvaUnitario * l.Cantidad);
-            decimal total     = subtotal + impuestos;
+            venta.Subtotal = decimal.Round(subtotal, 2);
+            venta.Impuestos = decimal.Round(impuestos, 2);
+            venta.Total = decimal.Round(venta.Subtotal + venta.Impuestos, 2);
 
-            decimal? cambio = null;
-            if (req.MetodoPago is MetodoPago.Efectivo or MetodoPago.Mixto)
+            if (venta.MetodoPago == MetodoPago.Efectivo || venta.MetodoPago == MetodoPago.Mixto)
             {
-                var recibido = req.EfectivoRecibido ?? 0m;
-                if (req.MetodoPago == MetodoPago.Efectivo && recibido < total)
-                    throw new InvalidOperationException("Efectivo insuficiente.");
-                cambio = Math.Max(0m, recibido - total);
+                var efectivo = venta.EfectivoRecibido ?? 0m;
+                if (efectivo < venta.Total)
+                    throw new ValidationException("El efectivo recibido no cubre el total.");
+                venta.Cambio = decimal.Round(efectivo - venta.Total, 2);
             }
 
-            // =========================================================
-            // 4) Persistencia (Transacción)
-            // =========================================================
+            // ===== Persistir con transacción + movimientos de inventario =====
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
-                var venta = new Venta
-                {
-                    ClienteId        = req.ClienteId,
-                    FechaVenta       = DateTime.UtcNow,
-                    Subtotal         = subtotal,
-                    Impuestos        = impuestos,
-                    Total            = total,
-                    MetodoPago       = req.MetodoPago,
-                    EfectivoRecibido = req.EfectivoRecibido,
-                    Cambio           = cambio,
-                    IdUsuario        = idUsuario,
-                    Estatus          = EstatusVenta.Pagada
-                };
-
                 _db.Ventas.Add(venta);
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(); // genera id_venta
 
-                var detalles = req.Lineas.Select(l => new DetalleVenta
+                // Movimientos: SALIDA por cada línea
+                foreach (var d in venta.Detalle)
                 {
-                    IdVenta           = venta.IdVenta,
-                    IdProducto        = l.IdProducto,
-                    Cantidad          = l.Cantidad,
-                    PrecioUnitario    = l.PrecioUnitario,
-                    DescuentoUnitario = l.DescuentoUnitario,
-                    IvaUnitario       = l.IvaUnitario
-                }).ToList();
-
-                _db.DetalleVentas.AddRange(detalles);
-                await _db.SaveChangesAsync();
-
-                // Movimientos de inventario (Salida por venta)
-                var movsSalida = detalles.Select(d => new InventarioMovimiento
-                {
-                    IdProducto     = d.IdProducto,
-                    TipoMovimiento = "Salida",
-                    Cantidad       = d.Cantidad,
-                    Fecha          = DateTime.UtcNow,
-                    OrigenTipo     = "Venta",
-                    OrigenId       = venta.IdVenta,
-                    IdUsuario      = idUsuario,
-                    Referencia     = $"Venta #{venta.IdVenta}"
-                });
-                _db.InventarioMovimientos.AddRange(movsSalida);
-                await _db.SaveChangesAsync();
-
-                // Caja: ingreso cuando es Efectivo
-                if (req.MetodoPago == MetodoPago.Efectivo)
-                {
-                    var apertura = await _db.CajaAperturas
-                        .Where(a => a.IdUsuario == idUsuario && a.Activa)
-                        .OrderByDescending(a => a.FechaApertura)
-                        .FirstOrDefaultAsync();
-
-                    if (apertura != null)
+                    _db.InventarioMovimientos.Add(new InventarioMovimiento
                     {
-                        _db.CajaMovimientos.Add(new CajaMovimiento
-                        {
-                            IdCajaApertura = apertura.IdCajaApertura,
-                            Fecha          = DateTime.UtcNow,
-                            Tipo           = TipoCajaMovimiento.Ingreso,
-                            Concepto       = $"Venta #{venta.IdVenta}",
-                            MontoEfectivo  = total,
-                            IdVenta        = venta.IdVenta,
-                            IdUsuario      = idUsuario
-                        });
-                        await _db.SaveChangesAsync();
-                    }
+                        IdProducto     = d.IdProducto,
+                        Cantidad       = d.Cantidad,
+                        Fecha          = venta.FechaVenta,
+                        TipoMovimiento = nameof(TipoMovimiento.Salida),
+                        OrigenTipo     = nameof(OrigenMovimiento.Venta),
+                        OrigenId       = venta.IdVenta,
+                        IdUsuario      = idUsuario,
+                        Referencia     = $"Venta #{venta.IdVenta}"
+                    });
                 }
 
+                await _db.SaveChangesAsync();
                 await tx.CommitAsync();
-
-                venta.Detalle = detalles;
-                return _mapper.Map<VentaDto>(venta);
             }
             catch
             {
                 await tx.RollbackAsync();
                 throw;
             }
+
+            // ===== Proyectar a DTO ===== (sustituible por AutoMapper)
+            return new VentaDto
+            {
+                IdVenta          = venta.IdVenta,
+                ClienteId        = venta.ClienteId,
+                FechaVenta       = venta.FechaVenta,
+                Subtotal         = venta.Subtotal,
+                Impuestos        = venta.Impuestos,
+                Total            = venta.Total,
+                MetodoPago       = venta.MetodoPago,
+                EfectivoRecibido = venta.EfectivoRecibido,
+                Cambio           = venta.Cambio,
+                Estatus          = venta.Estatus.ToString(),
+                Lineas = venta.Detalle.Select(d => new VentaLineaCreate
+                {
+                    IdProducto        = d.IdProducto,
+                    Cantidad          = d.Cantidad,
+                    PrecioUnitario    = d.PrecioUnitario,
+                    DescuentoUnitario = d.DescuentoUnitario,
+                    IvaUnitario       = d.IvaUnitario
+                }).ToList()
+            };
         }
 
         public async Task<bool> CancelarVentaAsync(int idUsuario, int idVenta)
@@ -190,60 +160,39 @@ namespace BioAlga.Backend.Services
                 .Include(v => v.Detalle)
                 .FirstOrDefaultAsync(v => v.IdVenta == idVenta);
 
-            if (venta == null) return false;
+            if (venta is null) return false;
             if (venta.Estatus == EstatusVenta.Cancelada) return true;
 
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
-                // Revertir inventario (Entrada)
-                var entradas = venta.Detalle.Select(d => new InventarioMovimiento
+                // Reponer inventario con ENTRADA
+                foreach (var d in venta.Detalle)
                 {
-                    IdProducto     = d.IdProducto,
-                    TipoMovimiento = "Entrada",
-                    Cantidad       = d.Cantidad,
-                    Fecha          = DateTime.UtcNow,
-                    OrigenTipo     = "Venta",
-                    OrigenId       = venta.IdVenta,
-                    IdUsuario      = idUsuario,
-                    Referencia     = $"Cancelación venta #{venta.IdVenta}"
-                });
-                _db.InventarioMovimientos.AddRange(entradas);
-
-                // Caja: egreso si fue efectivo
-                if (venta.MetodoPago == MetodoPago.Efectivo)
-                {
-                    var apertura = await _db.CajaAperturas
-                        .Where(a => a.IdUsuario == idUsuario && a.Activa)
-                        .FirstOrDefaultAsync();
-
-                    if (apertura != null)
+                    _db.InventarioMovimientos.Add(new InventarioMovimiento
                     {
-                        _db.CajaMovimientos.Add(new CajaMovimiento
-                        {
-                            IdCajaApertura = apertura.IdCajaApertura,
-                            Fecha          = DateTime.UtcNow,
-                            Tipo           = TipoCajaMovimiento.Egreso,
-                            Concepto       = $"Cancelación venta #{venta.IdVenta}",
-                            MontoEfectivo  = venta.Total,
-                            IdVenta        = venta.IdVenta,
-                            IdUsuario      = idUsuario
-                        });
-                    }
+                        IdProducto     = d.IdProducto,
+                        Cantidad       = d.Cantidad,
+                        Fecha          = DateTime.UtcNow,
+                        TipoMovimiento = nameof(TipoMovimiento.Entrada),
+                        OrigenTipo     = nameof(OrigenMovimiento.Venta),
+                        OrigenId       = venta.IdVenta,
+                        IdUsuario      = idUsuario,
+                        Referencia     = $"Cancelación venta #{venta.IdVenta}"
+                    });
                 }
 
                 venta.Estatus = EstatusVenta.Cancelada;
-                _db.Ventas.Update(venta);
-
                 await _db.SaveChangesAsync();
                 await tx.CommitAsync();
-                return true;
             }
             catch
             {
                 await tx.RollbackAsync();
                 throw;
             }
+
+            return true;
         }
     }
 }
