@@ -1,44 +1,49 @@
+// Models/DetalleVenta.cs
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BioAlga.Backend.Models
 {
-    [Table("detalle_ventas")]
+    [Table("detalle_venta")]
     public class DetalleVenta
     {
         [Key]
         [Column("id_detalle")]
         public int IdDetalle { get; set; }
 
-        [Required]
         [Column("id_venta")]
         public int IdVenta { get; set; }
 
-        [Required]
         [Column("id_producto")]
         public int IdProducto { get; set; }
 
-        [Required]
         [Column("cantidad")]
         public int Cantidad { get; set; }
 
-        [Required]
         [Column("precio_unitario", TypeName = "decimal(10,2)")]
         public decimal PrecioUnitario { get; set; }
 
         [Column("descuento_unitario", TypeName = "decimal(10,2)")]
-        public decimal DescuentoUnitario { get; set; } = 0m;
+        public decimal DescuentoUnitario { get; set; }
 
         [Column("iva_unitario", TypeName = "decimal(10,2)")]
-        public decimal IvaUnitario { get; set; } = 0m;
+        public decimal IvaUnitario { get; set; }
 
-        // =======================
-        // Navegaciones
-        // =======================
-        [ForeignKey(nameof(IdVenta))]
-        public virtual Venta Venta { get; set; } = null!;
+        // ------------ Navegación ------------
+        public Venta? Venta { get; set; }
+        public Producto? Producto { get; set; }
 
-        [ForeignKey(nameof(IdProducto))]
-        public virtual Producto Producto { get; set; } = null!;
+        // ------------ Calculados (no mapeados) ------------
+        [NotMapped]
+        public decimal ImporteBruto => PrecioUnitario * Cantidad;
+
+        [NotMapped]
+        public decimal ImporteDescuento => DescuentoUnitario * Cantidad;
+
+        [NotMapped]
+        public decimal ImporteIva => IvaUnitario * Cantidad;
+
+        [NotMapped]
+        public decimal ImporteNeto => ImporteBruto - ImporteDescuento + ImporteIva;
     }
 }

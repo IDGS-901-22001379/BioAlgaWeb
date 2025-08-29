@@ -30,6 +30,51 @@ namespace BioAlga.Backend.Controllers
         }
 
         // =========================================
+        // GET: api/ventas
+        // Historial paginado/filtrado de ventas
+        // =========================================
+        [HttpGet]
+        [ProducesResponseType(typeof(PagedResponse<VentaResumenDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<PagedResponse<VentaResumenDto>>> Buscar([FromQuery] VentaQueryParams query)
+        {
+            try
+            {
+                var resp = await _service.BuscarVentasAsync(query);
+                return Ok(resp);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar/buscar ventas");
+                return ProblemBadRequest("No se pudo obtener el historial de ventas",
+                    ex.InnerException?.Message ?? ex.Message);
+            }
+        }
+
+        // =========================================
+        // GET: api/ventas/{id}
+        // Detalle de una venta (encabezado + líneas)
+        // =========================================
+        [HttpGet("{id:int}")]
+        [ProducesResponseType(typeof(VentaDetalleDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<VentaDetalleDto>> ObtenerPorId([FromRoute] int id)
+        {
+            try
+            {
+                var dto = await _service.ObtenerVentaPorIdAsync(id);
+                return dto is null ? NotFound() : Ok(dto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener detalle de venta {IdVenta}", id);
+                return ProblemBadRequest("No se pudo obtener el detalle de la venta",
+                    ex.InnerException?.Message ?? ex.Message);
+            }
+        }
+
+        // =========================================
         // POST: api/ventas
         // Crea una venta
         // =========================================
@@ -45,7 +90,7 @@ namespace BioAlga.Backend.Controllers
             {
                 var idUsuario = GetUserId();
                 var venta = await _service.RegistrarVentaAsync(idUsuario, req);
-                return Created($"/api/ventas/{venta.IdVenta}", venta);
+                return CreatedAtAction(nameof(ObtenerPorId), new { id = venta.IdVenta }, venta);
             }
             catch (DbUpdateException ex)
             {
@@ -106,7 +151,6 @@ namespace BioAlga.Backend.Controllers
 
         private ActionResult ProblemBadRequest(string title, string detail)
         {
-            // En desarrollo puedes incluir más detalle si quisieras; aquí ya pasamos el mensaje claro.
             var pd = new ProblemDetails
             {
                 Title = title,
@@ -115,7 +159,6 @@ namespace BioAlga.Backend.Controllers
                 Type = "https://httpstatuses.com/400"
             };
 
-            // Opcional: agregar un flag para que el front decida cómo mostrarlo
             if (_env.IsDevelopment())
             {
                 pd.Extensions["environment"] = "Development";

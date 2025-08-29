@@ -548,50 +548,40 @@ namespace BioAlga.Backend.Data
             // ============================================
             // VENTAS (nuevo)
             // ============================================
-            modelBuilder.Entity<Venta>(e =>
-            {
-                e.ToTable("ventas");
+            // -------- Venta --------
+        modelBuilder.Entity<Venta>(e =>
+        {
+            e.HasKey(x => x.IdVenta);
+            e.Property(x => x.MetodoPago).HasConversion<string>(); // ENUM->varchar
+            e.Property(x => x.Estatus).HasConversion<string>();     // ENUM->varchar
 
-                e.HasKey(x => x.IdVenta);
-                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+            e.HasOne(v => v.Cliente)
+             .WithMany()
+             .HasForeignKey(v => v.ClienteId)
+             .HasConstraintName("fk_venta_cliente");
 
-                e.Property(x => x.ClienteId).HasColumnName("cliente_id");
-                e.Property(x => x.FechaVenta).HasColumnName("fecha_venta");
+            e.HasOne(v => v.Usuario)
+             .WithMany()
+             .HasForeignKey(v => v.IdUsuario)
+             .HasConstraintName("fk_venta_usuario");
 
-                e.Property(x => x.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
+            e.HasMany(v => v.Detalles)
+             .WithOne(d => d.Venta!)
+             .HasForeignKey(d => d.IdVenta)
+             .OnDelete(DeleteBehavior.Cascade)
+             .HasConstraintName("fk_dventa_venta");
+        });
 
-                e.Property(x => x.EfectivoRecibido).HasColumnName("efectivo_recibido").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Cambio).HasColumnName("cambio").HasColumnType("decimal(12,2)");
-                e.Property(x => x.MetodoPago).HasConversion<string>().HasColumnName("metodo_pago");
-                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
-                e.Property(x => x.Estatus).HasConversion<string>().HasColumnName("estatus");
+        // -------- DetalleVenta --------
+        modelBuilder.Entity<DetalleVenta>(e =>
+        {
+            e.HasKey(x => x.IdDetalle);
 
-                e.HasMany(x => x.Detalle)
-                 .WithOne(d => d.Venta)
-                 .HasForeignKey(d => d.IdVenta)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasIndex(x => x.FechaVenta).HasDatabaseName("idx_venta_fecha");
-            });
-
-            modelBuilder.Entity<DetalleVenta>(e =>
-            {
-                e.ToTable("detalle_venta");
-
-                e.HasKey(x => x.IdDetalle);
-                e.Property(x => x.IdDetalle).HasColumnName("id_detalle");
-
-                e.Property(x => x.IdVenta).HasColumnName("id_venta");
-                e.Property(x => x.IdProducto).HasColumnName("id_producto");
-
-                e.Property(x => x.Cantidad).HasColumnName("cantidad");
-                e.Property(x => x.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)");
-                e.Property(x => x.DescuentoUnitario).HasColumnName("descuento_unitario").HasColumnType("decimal(10,2)");
-                e.Property(x => x.IvaUnitario).HasColumnName("iva_unitario").HasColumnType("decimal(10,2)");
-            });
-
+            e.HasOne(d => d.Producto)
+             .WithMany()
+             .HasForeignKey(d => d.IdProducto)
+             .HasConstraintName("fk_dventa_prod");
+        });
 
             // ============================================
             // DEVOLUCIONES (nuevo)

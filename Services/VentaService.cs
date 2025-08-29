@@ -1,9 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
 using BioAlga.Backend.Models.Enums;
+using BioAlga.Backend.Repositories.Interfaces;
 using BioAlga.Backend.Services.Interfaces;
 
 namespace BioAlga.Backend.Services
@@ -11,15 +13,52 @@ namespace BioAlga.Backend.Services
     public class VentaService : IVentaService
     {
         private readonly ApplicationDbContext _db;
+        private readonly IVentaRepository _repo;
+        private readonly IMapper _mapper;
 
-        public VentaService(ApplicationDbContext db)
+        public VentaService(ApplicationDbContext db, IVentaRepository repo, IMapper mapper)
         {
             _db = db;
+            _repo = repo;
+            _mapper = mapper;
         }
 
+        // ============================
+        // HISTORIAL (paginado)
+        // ============================
+        public async Task<PagedResponse<VentaResumenDto>> BuscarVentasAsync(VentaQueryParams qp)
+        {
+            var (items, total) = await _repo.SearchAsync(qp);
+            var list = _mapper.Map<List<VentaResumenDto>>(items);
+
+            var page = qp.Page <= 0 ? 1 : qp.Page;
+            var pageSize = qp.PageSize <= 0 ? 10 : qp.PageSize;
+
+            return new PagedResponse<VentaResumenDto>
+            {
+                Items = list,
+                Total = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        // ============================
+        // DETALLE DE UNA VENTA
+        // ============================
+        public async Task<VentaDetalleDto?> ObtenerVentaPorIdAsync(int idVenta)
+        {
+            var venta = await _repo.GetByIdWithDetailsAsync(idVenta);
+            if (venta is null) return null;
+
+            return _mapper.Map<VentaDetalleDto>(venta);
+        }
+
+        // ============================
+        // REGISTRAR VENTA
+        // ============================
         public async Task<VentaDto> RegistrarVentaAsync(int idUsuario, VentaCreateRequest req)
         {
-            // ===== Validaciones de entrada =====
             if (req.Lineas is null || req.Lineas.Count == 0)
                 throw new ValidationException("La venta debe incluir al menos un producto.");
 
@@ -27,7 +66,6 @@ namespace BioAlga.Backend.Services
                 req.EfectivoRecibido is null)
                 throw new ValidationException("Efectivo recibido es requerido para método Efectivo/Mixto.");
 
-            // ===== Preparar venta (cabecera) =====
             var venta = new Venta
             {
                 IdUsuario        = idUsuario,
@@ -35,10 +73,9 @@ namespace BioAlga.Backend.Services
                 FechaVenta       = DateTime.UtcNow,
                 MetodoPago       = req.MetodoPago,
                 EfectivoRecibido = req.EfectivoRecibido,
-                Estatus          = EstatusVenta.Pagada, // ajusta a tu regla si manejas "Pendiente"
+                Estatus          = EstatusVenta.Pagada
             };
 
-            // ===== Resolver líneas + validar productos y stock =====
             decimal subtotal = 0m, impuestos = 0m;
 
             foreach (var l in req.Lineas)
@@ -51,22 +88,17 @@ namespace BioAlga.Backend.Services
                 if (l.Cantidad <= 0)
                     throw new ValidationException("La cantidad debe ser mayor a 0.");
 
-                // --- Chequeo de stock (existencia aproximada) ---
-                // SUMA(Entrada/Ajuste+) - SUMA(Salida)
                 var existencia = await _db.InventarioMovimientos
                     .Where(i => i.IdProducto == l.IdProducto)
                     .SumAsync(i =>
                         i.TipoMovimiento == nameof(TipoMovimiento.Salida) ? -i.Cantidad :
                         i.TipoMovimiento == nameof(TipoMovimiento.Entrada) ?  i.Cantidad :
-                        // Ajuste: positivo o negativo según convención. Aquí se asume positivo.
                         i.Cantidad
                     );
 
                 if (existencia < l.Cantidad)
                     throw new ValidationException($"Stock insuficiente para el producto {l.IdProducto}. Existencia: {existencia}");
 
-                // Si el precio viene del front (según tipo de cliente), lo tomamos.
-                // Si prefieres resolverlo aquí con tu tabla producto_precios vigente, hazlo antes.
                 var precioUnit = l.PrecioUnitario;
 
                 var linea = new DetalleVenta
@@ -78,17 +110,16 @@ namespace BioAlga.Backend.Services
                     IvaUnitario       = l.IvaUnitario
                 };
 
-                venta.Detalle.Add(linea);
+                venta.Detalles.Add(linea);
 
-                // Totales
                 var baseLinea = (precioUnit - l.DescuentoUnitario) * l.Cantidad;
                 subtotal  += baseLinea;
                 impuestos += (l.IvaUnitario * l.Cantidad);
             }
 
-            venta.Subtotal = decimal.Round(subtotal, 2);
+            venta.Subtotal  = decimal.Round(subtotal, 2);
             venta.Impuestos = decimal.Round(impuestos, 2);
-            venta.Total = decimal.Round(venta.Subtotal + venta.Impuestos, 2);
+            venta.Total     = decimal.Round(venta.Subtotal + venta.Impuestos, 2);
 
             if (venta.MetodoPago == MetodoPago.Efectivo || venta.MetodoPago == MetodoPago.Mixto)
             {
@@ -98,15 +129,13 @@ namespace BioAlga.Backend.Services
                 venta.Cambio = decimal.Round(efectivo - venta.Total, 2);
             }
 
-            // ===== Persistir con transacción + movimientos de inventario =====
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
                 _db.Ventas.Add(venta);
-                await _db.SaveChangesAsync(); // genera id_venta
+                await _db.SaveChangesAsync();
 
-                // Movimientos: SALIDA por cada línea
-                foreach (var d in venta.Detalle)
+                foreach (var d in venta.Detalles)
                 {
                     _db.InventarioMovimientos.Add(new InventarioMovimiento
                     {
@@ -130,7 +159,6 @@ namespace BioAlga.Backend.Services
                 throw;
             }
 
-            // ===== Proyectar a DTO ===== (sustituible por AutoMapper)
             return new VentaDto
             {
                 IdVenta          = venta.IdVenta,
@@ -143,7 +171,7 @@ namespace BioAlga.Backend.Services
                 EfectivoRecibido = venta.EfectivoRecibido,
                 Cambio           = venta.Cambio,
                 Estatus          = venta.Estatus.ToString(),
-                Lineas = venta.Detalle.Select(d => new VentaLineaCreate
+                Lineas = venta.Detalles.Select(d => new VentaLineaCreate
                 {
                     IdProducto        = d.IdProducto,
                     Cantidad          = d.Cantidad,
@@ -154,10 +182,13 @@ namespace BioAlga.Backend.Services
             };
         }
 
+        // ============================
+        // CANCELAR VENTA
+        // ============================
         public async Task<bool> CancelarVentaAsync(int idUsuario, int idVenta)
         {
             var venta = await _db.Ventas
-                .Include(v => v.Detalle)
+                .Include(v => v.Detalles)
                 .FirstOrDefaultAsync(v => v.IdVenta == idVenta);
 
             if (venta is null) return false;
@@ -166,8 +197,7 @@ namespace BioAlga.Backend.Services
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
-                // Reponer inventario con ENTRADA
-                foreach (var d in venta.Detalle)
+                foreach (var d in venta.Detalles)
                 {
                     _db.InventarioMovimientos.Add(new InventarioMovimiento
                     {

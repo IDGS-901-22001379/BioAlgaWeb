@@ -23,7 +23,7 @@ namespace BioAlga.Backend.Services
 
         public async Task<int> RegistrarDevolucionAsync(int idUsuario, DevolucionCreateRequest req)
         {
-            var venta = await _db.Ventas.Include(v => v.Detalle)
+            var venta = await _db.Ventas.Include(v => v.Detalles)
                 .FirstOrDefaultAsync(v => v.IdVenta == req.IdVenta);
 
             if (venta == null)

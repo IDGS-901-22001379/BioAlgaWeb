@@ -17,12 +17,17 @@ import { InventarioService } from '../../services/inventario.service';
 import {
   VentaCreateRequest,
   VentaLineaCreate,
-  MetodoPago
+  MetodoPago,
+  // NUEVO
+  VentaResumenDto,
+  VentaDetalleDto,
+  VentaQueryParams,
 } from '../../models/venta-dtos.model';
 import { ProductoLookupDto } from '../../models/producto-lookup.model';
 import { TipoPrecio } from '../../models/precio.model';
 import { ClienteDto } from '../../models/cliente.model';
 import { StockResponse } from '../../models/inventario.model';
+import { PagedResponse } from '../../models/paged-response.model';
 
 type ProductoCard = ProductoLookupDto & { precio?: number | null; stock?: number | null };
 
@@ -80,7 +85,12 @@ export class VentasPageComponent implements OnInit {
     return 0;
   });
 
-  // ======= Devolución rápida
+  // ======= MODALES =======
+  showDevModal = signal(false);          // Devoluciones (botón rojo)
+  showVentasDiaModal = signal(false);    // Ventas del día / por fecha (botón azul)
+  showDetalleModal = signal(false);      // Detalle de una venta (desde el modal azul)
+
+  // ======= Devolución (ahora en modal) =======
   formDev = this.fb.group({
     idVenta: [null as number | null, Validators.required],
     motivo: ['defecto', Validators.required],
@@ -89,6 +99,16 @@ export class VentasPageComponent implements OnInit {
     cantidad: [1, [Validators.required, Validators.min(1)]],
     ivaUnitario: [0]
   });
+
+  // ======= Ventas día/fecha =======
+  fechaSeleccionada = signal<string>(this.hoyISO()); // yyyy-MM-dd
+  ventasDelDia = signal<VentaResumenDto[]>([]);
+  totalVentasDelDia = signal<number>(0);
+  cargandoVentasDia = signal(false);
+
+  // ======= Detalle de venta =======
+  ventaDetalle = signal<VentaDetalleDto | null>(null);
+  cargandoDetalle = signal(false);
 
   ngOnInit(): void {
     // Autocomplete + enriquecimiento (precio/stock)
@@ -196,7 +216,6 @@ export class VentasPageComponent implements OnInit {
     if (idx < 0) idx = 0;
     if (idx > len - 1) idx = len - 1;
     this.selectedIndex.set(idx);
-    // Asegurar visibilidad en scroll
     const el = document.getElementById('row-res-' + idx);
     if (el) el.scrollIntoView({ block: 'nearest' });
   }
@@ -230,8 +249,8 @@ export class VentasPageComponent implements OnInit {
         this.resultados.set(enriched);
       },
       error: () => {
-        this.sugerencias.set(list);
-        this.resultados.set(list);
+        this.sugerencias.set(list as any);
+        this.resultados.set(list as any);
       }
     });
   }
@@ -348,6 +367,10 @@ export class VentasPageComponent implements OnInit {
     });
   }
 
+  // ============ NUEVO: MODAL DEVOLUCIONES ============
+  abrirDevModal(): void { this.showDevModal.set(true); }
+  cerrarDevModal(): void { this.showDevModal.set(false); }
+
   registrarDevolucion(): void {
     if (this.formDev.invalid) { this.formDev.markAllAsTouched(); return; }
     const v = this.formDev.getRawValue();
@@ -368,13 +391,82 @@ export class VentasPageComponent implements OnInit {
       next: (id) => {
         Swal.fire('Devolución registrada', `Folio #${id}`, 'success');
         this.formDev.reset({ idVenta: null, motivo: 'defecto', reingresaInventario: true, idProducto: null, cantidad: 1, ivaUnitario: 0 });
+        this.cerrarDevModal();
       },
       error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo registrar la devolución', 'error'),
       complete: () => this.cargando.set(false)
     });
   }
 
+  // ============ NUEVO: MODAL VENTAS DEL DÍA / FECHA ============
+  abrirVentasDiaModal(): void {
+    this.showVentasDiaModal.set(true);
+    this.cargarVentasDeFecha(this.fechaSeleccionada());
+  }
+  cerrarVentasDiaModal(): void {
+    this.showVentasDiaModal.set(false);
+  }
+  onFechaCalendarioChange(fecha: string): void {
+    // input type="date" da 'YYYY-MM-DD'
+    this.fechaSeleccionada.set(fecha);
+    this.cargarVentasDeFecha(fecha);
+  }
+  private cargarVentasDeFecha(fechaYYYYMMDD: string): void {
+    const desde = `${fechaYYYYMMDD}T00:00:00`;
+    const hasta = `${fechaYYYYMMDD}T23:59:59`;
+
+    const params: VentaQueryParams = {
+      fechaDesde: desde,
+      fechaHasta: hasta,
+      page: 1,
+      pageSize: 50,
+      sortBy: 'fecha_venta',
+      sortDir: 'desc'
+    };
+
+    this.cargandoVentasDia.set(true);
+    this.ventasApi.buscarResumen(params).subscribe({
+      next: (resp: PagedResponse<VentaResumenDto>) => {
+        this.ventasDelDia.set(resp.items || []);
+        this.totalVentasDelDia.set(resp.total || resp.items.length);
+      },
+      error: (e) => {
+        this.ventasDelDia.set([]);
+        this.totalVentasDelDia.set(0);
+        Swal.fire('Error', this.extractErr(e) || 'No se pudieron cargar las ventas', 'error');
+      },
+      complete: () => this.cargandoVentasDia.set(false)
+    });
+  }
+
+  // ============ NUEVO: MODAL DETALLE DE VENTA ============
+  verDetallesVenta(idVenta: number): void {
+    this.cargandoDetalle.set(true);
+    this.ventasApi.obtenerDetalle(idVenta).subscribe({
+      next: (d) => {
+        this.ventaDetalle.set(d);
+        this.showDetalleModal.set(true);
+      },
+      error: (e) => {
+        this.ventaDetalle.set(null);
+        Swal.fire('Error', this.extractErr(e) || 'No se pudieron cargar los detalles', 'error');
+      },
+      complete: () => this.cargandoDetalle.set(false)
+    });
+  }
+  cerrarDetalleModal(): void {
+    this.showDetalleModal.set(false);
+    this.ventaDetalle.set(null);
+  }
+
   // ====== Util ======
+  private hoyISO(): string {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
   private ventaDialogHtml(v: any): string {
     const total = (typeof v.total === 'number' && v.total.toFixed) ? v.total.toFixed(2) : v.total;
     const cambioHtml = (typeof v.cambio === 'number' && v.cambio > 0)

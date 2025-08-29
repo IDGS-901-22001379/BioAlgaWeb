@@ -1,22 +1,15 @@
 <div class="container-fluid mt-3 ventas-container">
   <div class="row">
     <!-- ===================== LADO IZQUIERDO: BÚSQUEDA + RESULTADOS ===================== -->
-    <div class="col-lg-5 mb-3"> <!-- ← más chico -->
+    <div class="col-lg-5 mb-3">
       <!-- BUSCADOR -->
       <div class="card mb-3">
         <div class="card-body position-relative">
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input
-              #inputBuscar
-              type="text"
-              class="form-control"
-              placeholder="Busca por SKU, código o nombre…"
-              [formControl]="formBuscar.controls['q']"
-              (focus)="showSugerencias.set(true)"
-              (keydown)="onBuscadorKey($event)"
-              autocomplete="off"
-            />
+            <input #inputBuscar type="text" class="form-control" placeholder="Busca por SKU, código o nombre…"
+              [formControl]="formBuscar.controls['q']" (focus)="showSugerencias.set(true)"
+              (keydown)="onBuscadorKey($event)" autocomplete="off" />
 
             <button class="btn btn-outline-secondary" type="button" (click)="limpiarBusqueda()">
               <i class="bi bi-x-lg"></i>
@@ -29,8 +22,8 @@
             </button>
           </div>
 
-          <!-- SUGERENCIAS (lista breve bajo el input) -->
-
+          <!-- (Opcional) lista de sugerencias bajo el input -->
+          <!-- deja tu implementación aquí si la tenías en otro template -->
         </div>
       </div>
 
@@ -50,13 +43,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr
-                *ngFor="let p of resultados(); let i = index"
-                [id]="'row-res-'+i"
-                [class.table-active]="i === selectedIndex()"
-                (mouseenter)="setSelected(i)"
-                (click)="agregarProductoRapido(p)"
-              >
+              <tr *ngFor="let p of resultados(); let i = index" [id]="'row-res-'+i"
+                [class.table-active]="i === selectedIndex()" (mouseenter)="setSelected(i)"
+                (click)="agregarProductoRapido(p)">
                 <td class="text-truncate">{{ p.nombre }}</td>
                 <td class="text-muted">{{ p.sku }}</td>
                 <td class="text-center">{{ (p.stock ?? 0) | number:'1.0-0' }}</td>
@@ -77,8 +66,8 @@
       </div>
     </div>
 
-    <!-- ===================== LADO DERECHO: CARRITO / COBRO / DEVOLUCIONES ===================== -->
-    <div class="col-lg-7"><!-- ← más grande -->
+    <!-- ===================== LADO DERECHO: CARRITO / COBRO ===================== -->
+    <div class="col-lg-7">
       <!-- CLIENTE + MÉTODO PAGO -->
       <div class="card mb-3">
         <div class="card-body">
@@ -90,7 +79,6 @@
                 Usa el tipo de cliente para precio: Normal / Mayoreo / Descuento / Especial.
               </div>
 
-              <!-- Info de cliente y tipo de precio detectado -->
               <div class="mt-2">
                 <small class="text-muted">
                   Tipo de precio:
@@ -114,7 +102,8 @@
               </select>
             </div>
 
-            <div class="col-6" *ngIf="formVenta.value.metodoPago === 'Efectivo' || formVenta.value.metodoPago === 'Mixto'">
+            <div class="col-6"
+              *ngIf="formVenta.value.metodoPago === 'Efectivo' || formVenta.value.metodoPago === 'Mixto'">
               <label class="form-label">Efectivo recibido</label>
               <input type="number" min="0" step="0.01" class="form-control" formControlName="efectivoRecibido">
             </div>
@@ -168,37 +157,24 @@
                 <td class="text-truncate" style="max-width:160px">{{ l.nombre || ('#'+l.idProducto) }}</td>
                 <td class="text-center">
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, -1)" [disabled]="l.cantidad<=1"><i class="bi bi-dash"></i></button>
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, -1)"
+                      [disabled]="l.cantidad<=1"><i class="bi bi-dash"></i></button>
                     <button class="btn btn-outline-secondary disabled">{{ l.cantidad }}</button>
-                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, +1)"><i class="bi bi-plus"></i></button>
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, +1)"><i
+                        class="bi bi-plus"></i></button>
                   </div>
                 </td>
                 <td class="text-end">
-                  <input
-                    type="number"
-                    class="form-control form-control-sm text-end"
-                    [(ngModel)]="l.precioUnitario"
-                    [ngModelOptions]="{standalone:true}"
-                    (change)="recalcular()"
-                  />
+                  <input type="number" class="form-control form-control-sm text-end" [(ngModel)]="l.precioUnitario"
+                    [ngModelOptions]="{standalone:true}" (change)="recalcular()" />
                 </td>
                 <td class="text-end">
-                  <input
-                    type="number"
-                    class="form-control form-control-sm text-end"
-                    [(ngModel)]="l.descuentoUnitario"
-                    [ngModelOptions]="{standalone:true}"
-                    (change)="recalcular()"
-                  />
+                  <input type="number" class="form-control form-control-sm text-end" [(ngModel)]="l.descuentoUnitario"
+                    [ngModelOptions]="{standalone:true}" (change)="recalcular()" />
                 </td>
                 <td class="text-end">
-                  <input
-                    type="number"
-                    class="form-control form-control-sm text-end"
-                    [(ngModel)]="l.ivaUnitario"
-                    [ngModelOptions]="{standalone:true}"
-                    (change)="recalcular()"
-                  />
+                  <input type="number" class="form-control form-control-sm text-end" [(ngModel)]="l.ivaUnitario"
+                    [ngModelOptions]="{standalone:true}" (change)="recalcular()" />
                 </td>
                 <td class="text-end">
                   {{ (l.cantidad * (l.precioUnitario - l.descuentoUnitario + l.ivaUnitario)) | number:'1.2-2' }}
@@ -240,48 +216,228 @@
           <button class="btn btn-success w-100 mt-3" (click)="cobrar()" [disabled]="!lineas().length || cargando()">
             <i class="bi bi-cash-coin"></i> Cobrar
           </button>
-        </div>
-      </div>
 
-      <!-- DEVOLUCIONES RÁPIDAS -->
-      <div class="card">
-        <div class="card-header">
-          <strong>Devolución rápida</strong>
-        </div>
-        <div class="card-body">
-          <form [formGroup]="formDev" class="row g-2 align-items-end">
-            <div class="col-4">
-              <label class="form-label">Venta #</label>
-              <input type="number" class="form-control" formControlName="idVenta">
-            </div>
-            <div class="col-8">
-              <label class="form-label">Motivo</label>
-              <input type="text" class="form-control" formControlName="motivo" placeholder="daño, error, garantía…">
-            </div>
-            <div class="col-6">
-              <label class="form-label">Id Producto</label>
-              <input type="number" class="form-control" formControlName="idProducto">
-            </div>
-            <div class="col-3">
-              <label class="form-label">Cant</label>
-              <input type="number" min="1" class="form-control" formControlName="cantidad">
-            </div>
-            <div class="col-3">
-              <label class="form-label">IVA/U</label>
-              <input type="number" min="0" step="0.01" class="form-control" formControlName="ivaUnitario">
-            </div>
-            <div class="col-6 form-check ms-2">
-              <input class="form-check-input" type="checkbox" formControlName="reingresaInventario" id="chkReingresa">
-              <label class="form-check-label" for="chkReingresa">Reingresa a inventario</label>
-            </div>
-            <div class="col-6 text-end">
-              <button class="btn btn-outline-primary" type="button" (click)="registrarDevolucion()" [disabled]="cargando()">
-                Registrar devolución
-              </button>
-            </div>
-          </form>
+          <!-- NUEVOS BOTONES DEBAJO DEL CARRITO -->
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-danger flex-fill" type="button" (click)="abrirDevModal()">
+              <i class="bi bi-arrow-counterclockwise"></i> Devoluciones
+            </button>
+            <button class="btn btn-primary flex-fill" type="button" (click)="abrirVentasDiaModal()">
+              <i class="bi bi-calendar3"></i> Ventas del día
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- =================================================================================== -->
+<!-- =============================== MODALES NUEVOS =================================== -->
+<!-- =================================================================================== -->
+
+<!-- Modal: Devolución rápida -->
+<div class="modal fade" tabindex="-1" [class.show]="showDevModal()"
+  [ngStyle]="{display: showDevModal() ? 'block' : 'none'}" *ngIf="showDevModal()">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Devolución rápida</h5>
+        <button type="button" class="btn-close btn-close-white" (click)="cerrarDevModal()"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="formDev" class="row g-2 align-items-end">
+          <div class="col-4">
+            <label class="form-label">Venta #</label>
+            <input type="number" class="form-control" formControlName="idVenta">
+          </div>
+          <div class="col-8">
+            <label class="form-label">Motivo</label>
+            <input type="text" class="form-control" formControlName="motivo" placeholder="daño, error, garantía…">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Id Producto</label>
+            <input type="number" class="form-control" formControlName="idProducto">
+          </div>
+          <div class="col-3">
+            <label class="form-label">Cant</label>
+            <input type="number" min="1" class="form-control" formControlName="cantidad">
+          </div>
+          <div class="col-3">
+            <label class="form-label">IVA/U</label>
+            <input type="number" min="0" step="0.01" class="form-control" formControlName="ivaUnitario">
+          </div>
+          <div class="col-6 form-check ms-2">
+            <input class="form-check-input" type="checkbox" formControlName="reingresaInventario" id="chkReingresa">
+            <label class="form-check-label" for="chkReingresa">Reingresa a inventario</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" (click)="cerrarDevModal()">Cerrar</button>
+        <button class="btn btn-danger" type="button" (click)="registrarDevolucion()" [disabled]="cargando()">Registrar
+          devolución</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="showDevModal()"></div>
+
+<!-- Modal: Ventas del día / por fecha -->
+<div class="modal fade" tabindex="-1" [class.show]="showVentasDiaModal()"
+  [ngStyle]="{display: showVentasDiaModal() ? 'block' : 'none'}" *ngIf="showVentasDiaModal()">
+  <div class="modal-dialog modal-xl"> <!-- grande pero no pantalla completa -->
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="bi bi-calendar3 me-2"></i>Ventas del día / por fecha
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="cerrarVentasDiaModal()"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row align-items-end g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Fecha</label>
+            <input #fecha type="date" class="form-control" [value]="fechaSeleccionada()"
+              (change)="onFechaCalendarioChange(fecha.value)" />
+          </div>
+
+          <div class="col-md-8 text-md-end">
+            <span class="badge bg-secondary me-2">Ventas: {{ ventasDelDia().length }}</span>
+            <span class="badge bg-secondary">Total registros: {{ totalVentasDelDia() }}</span>
+          </div>
+        </div>
+
+        <div class="table-responsive" [class.opacity-50]="cargandoVentasDia()">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Folio</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th class="text-end">Subtotal</th>
+                <th class="text-end">Impuestos</th>
+                <th class="text-end">Total</th>
+                <th>Método</th>
+                <th>Estatus</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let v of ventasDelDia()">
+                <td>#{{ v.idVenta }}</td>
+                <td>{{ v.fechaVenta | date:'short' }}</td>
+                <td>{{ v.clienteNombre || 'Público en general' }}</td>
+                <td class="text-end">{{ v.subtotal | number:'1.2-2' }}</td>
+                <td class="text-end">{{ v.impuestos | number:'1.2-2' }}</td>
+                <td class="text-end fw-semibold">{{ v.total | number:'1.2-2' }}</td>
+                <td>{{ v.metodoPago }}</td>
+                <td>
+                  <span class="badge" [class.bg-success]="v.estatus==='Pagada'"
+                    [class.bg-secondary]="v.estatus!=='Pagada'">
+                    {{ v.estatus }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="verDetallesVenta(v.idVenta)">
+                    <i class="bi bi-eye"></i> Ver detalles
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="!ventasDelDia().length">
+                <td colspan="9" class="text-center text-muted py-3">No hay ventas para la fecha seleccionada.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" (click)="cerrarVentasDiaModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="showVentasDiaModal()"></div>
+
+<!-- Modal: Detalle de Venta -->
+<div class="modal fade" tabindex="-1" [class.show]="showDetalleModal()"
+  [ngStyle]="{display: showDetalleModal() ? 'block' : 'none'}" *ngIf="showDetalleModal() && ventaDetalle()">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-receipt-cutoff me-2"></i>
+          Detalle venta #{{ ventaDetalle()?.idVenta }}
+        </h5>
+        <button type="button" class="btn-close" (click)="cerrarDetalleModal()"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-md-7">
+            <div><b>Fecha:</b> {{ ventaDetalle()?.fechaVenta | date:'short' }}</div>
+            <div><b>Cliente:</b> {{ ventaDetalle()?.clienteNombre || 'Público en general' }}</div>
+            <div><b>Método:</b> {{ ventaDetalle()?.metodoPago }}</div>
+            <div>
+              <b>Estatus:</b>
+              <span class="badge" [class.bg-success]="ventaDetalle()?.estatus==='Pagada'"
+                [class.bg-secondary]="ventaDetalle()?.estatus!=='Pagada'">
+                {{ ventaDetalle()?.estatus }}
+              </span>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <div class="d-flex justify-content-between"><span>Subtotal</span><b>{{ ventaDetalle()?.subtotal |
+                number:'1.2-2' }}</b></div>
+            <div class="d-flex justify-content-between"><span>Impuestos</span><b>{{ ventaDetalle()?.impuestos |
+                number:'1.2-2' }}</b></div>
+            <div class="d-flex justify-content-between fs-5"><span>Total</span><b>{{ ventaDetalle()?.total |
+                number:'1.2-2' }}</b></div>
+            <div *ngIf="ventaDetalle()?.cambio">
+              <div class="d-flex justify-content-between"><span>Cambio</span><b class="text-success">{{
+                  ventaDetalle()?.cambio | number:'1.2-2' }}</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Producto</th>
+                <th class="text-center">Cant</th>
+                <th class="text-end">P.Unit</th>
+                <th class="text-end">Desc/U</th>
+                <th class="text-end">IVA/U</th>
+                <th class="text-end">Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let d of (ventaDetalle()?.detalles || [])">
+                <td>{{ d.productoNombre }} <small class="text-muted" *ngIf="d.codigoSku">({{ d.codigoSku }})</small>
+                </td>
+                <td class="text-center">{{ d.cantidad }}</td>
+                <td class="text-end">{{ d.precioUnitario | number:'1.2-2' }}</td>
+                <td class="text-end">{{ d.descuentoUnitario | number:'1.2-2' }}</td>
+                <td class="text-end">{{ d.ivaUnitario | number:'1.2-2' }}</td>
+                <td class="text-end">
+                  {{ (d.cantidad * (d.precioUnitario - d.descuentoUnitario + d.ivaUnitario)) | number:'1.2-2' }}
+                </td>
+              </tr>
+              <tr *ngIf="!(ventaDetalle()?.detalles || []).length">
+                <td colspan="6" class="text-center text-muted py-3">Sin líneas para esta venta.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" (click)="cerrarDetalleModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="showDetalleModal()"></div>

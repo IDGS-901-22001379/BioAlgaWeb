@@ -6,7 +6,7 @@ using BioAlga.Backend.Services;
 using BioAlga.Backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using BioAlga.Backend.Mapping; // Para detectar MappingProfiles (Cliente, Empleado, etc.)
+using BioAlga.Backend.Mapping; // Para detectar MappingProfiles (Cliente, Empleado, Venta, etc.)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,9 +28,9 @@ builder.Services
     {
         opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-        // Enums como texto ("Entrada","Salida","Compra", etc.)
+        // Enums como texto ("Entrada","Salida","Efectivo","Pagada", etc.)
         opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        // opt.JsonSerializerOptions.PropertyNamingPolicy = null; // Usa PascalCase si lo necesitas
+        // opt.JsonSerializerOptions.PropertyNamingPolicy = null; // Descomenta si quieres PascalCase en JSON
     });
 
 // ===============================
@@ -72,26 +72,24 @@ builder.Services.AddScoped<IEmpleadoService, EmpleadoService>();
 builder.Services.AddScoped<IProveedorRepository, ProveedorRepository>();
 builder.Services.AddScoped<IProveedorService, ProveedorService>();
 
-// ======== Productos & Precios ========
-// Productos
+// Productos & Precios
 builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
 builder.Services.AddScoped<IProductoService, ProductoService>();
-
-// Precios (histórico por producto/tipo)
 builder.Services.AddScoped<IPrecioRepository, PrecioRepository>();
 builder.Services.AddScoped<IPrecioService, PrecioService>();
 
-// ======== NUEVO: Compras + Inventario ========
+// Compras + Inventario
 builder.Services.AddScoped<ICompraRepository, CompraRepository>();
 builder.Services.AddScoped<ICompraService, CompraService>();
-
 builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
-// (Si luego agregas un servicio de inventario de más alto nivel, lo registras aquí)
+// (Si luego agregas un servicio de inventario de más alto nivel, regístralo aquí)
 
-// ======== NUEVO: Ventas / Devoluciones / Caja ========  // <-- NUEVO
-builder.Services.AddScoped<IVentaService, VentaService>();          // <-- NUEVO
-builder.Services.AddScoped<IDevolucionService, DevolucionService>(); // <-- NUEVO
-builder.Services.AddScoped<ICajaService, CajaService>();             // <-- NUEVO
+// ======== Ventas / Devoluciones / Caja ========
+builder.Services.AddScoped<IVentaRepository, VentaRepository>();   // <-- NUEVO (repositorio de ventas)
+builder.Services.AddScoped<IVentaService, VentaService>();         // servicio de ventas
+
+builder.Services.AddScoped<IDevolucionService, DevolucionService>(); // si ya lo tienes implementado
+builder.Services.AddScoped<ICajaService, CajaService>();             // si ya lo tienes implementado
 
 // ===============================
 // CORS (Angular)
@@ -124,8 +122,10 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("FrontCors");
 
-// (Si agregas auth en el futuro, coloca app.UseAuthentication() aquí)
+// (Si agregas auth en el futuro)
+/// app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
