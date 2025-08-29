@@ -1,20 +1,20 @@
 <div class="container-fluid mt-3 ventas-container">
   <div class="row">
-
-    <!-- ===================== LADO IZQUIERDO: BÚSQUEDA + GRID ===================== -->
-    <div class="col-lg-8 mb-3">
-
+    <!-- ===================== LADO IZQUIERDO: BÚSQUEDA + RESULTADOS ===================== -->
+    <div class="col-lg-5 mb-3"> <!-- ← más chico -->
       <!-- BUSCADOR -->
       <div class="card mb-3">
         <div class="card-body position-relative">
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
             <input
+              #inputBuscar
               type="text"
               class="form-control"
               placeholder="Busca por SKU, código o nombre…"
               [formControl]="formBuscar.controls['q']"
               (focus)="showSugerencias.set(true)"
+              (keydown)="onBuscadorKey($event)"
               autocomplete="off"
             />
 
@@ -29,62 +29,56 @@
             </button>
           </div>
 
-          <!-- SUGERENCIAS -->
-          <ul
-            class="list-group sugerencias mt-2 position-absolute w-100"
-            style="z-index: 10;"
-            *ngIf="showSugerencias() && sugerencias().length"
-          >
-            <li
-              class="list-group-item d-flex justify-content-between align-items-center"
-              *ngFor="let s of sugerencias()"
-              (click)="elegirProducto(s)"
-            >
-              <div class="d-flex flex-column">
-                <strong>{{ s.nombre }}</strong>
-                <small class="text-muted">
-                  SKU: {{ s.sku }} • {{ s.codigoBarras || 'sin código' }}
-                </small>
-              </div>
-              <span class="badge text-bg-light">#{{ s.id_Producto }}</span>
-            </li>
-          </ul>
+          <!-- SUGERENCIAS (lista breve bajo el input) -->
+
         </div>
       </div>
 
-      <!-- GRID DE RESULTADOS / ATAJOS -->
-      <div class="row g-3">
-        <div class="col-md-4" *ngFor="let p of resultados()">
-          <div class="card h-100 producto-card" (click)="agregarProductoRapido(p)">
-            <div class="card-body d-flex flex-column justify-content-between">
-              <div>
-                <h6 class="card-title text-truncate">{{ p.nombre }}</h6>
-                <div class="small text-muted">SKU: {{ p.sku }}</div>
-                <div class="small text-muted">Existencia aprox.: {{ p.stock ?? 0 }}</div>
-              </div>
-              <div class="d-flex justify-content-between align-items-end mt-2">
-                <!-- IMPORTANTE: agrupar (p.precio ?? 0) ANTES del pipe number -->
-                <span class="fs-5 fw-semibold">$ {{ (p.precio ?? 0) | number:'1.2-2' }}</span>
-                <button
-                  class="btn btn-sm btn-primary"
-                  (click)="agregarProductoRapido(p); $event.stopPropagation()"
-                >
-                  <i class="bi bi-cart-plus"></i> Agregar
-                </button>
-              </div>
-            </div>
-          </div>
+      <!-- TABLA DE RESULTADOS -->
+      <div class="card">
+        <div class="card-header py-2">
+          <strong>Resultados</strong>
         </div>
-
-        <div *ngIf="!resultados().length" class="text-center text-muted py-4">
-          Empieza buscando un producto arriba o escanea un código.
+        <div class="table-responsive tabla-resultados">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width: 45%">Producto</th>
+                <th style="width: 20%">SKU</th>
+                <th class="text-center" style="width: 20%">Existencia</th>
+                <th class="text-end" style="width: 15%">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let p of resultados(); let i = index"
+                [id]="'row-res-'+i"
+                [class.table-active]="i === selectedIndex()"
+                (mouseenter)="setSelected(i)"
+                (click)="agregarProductoRapido(p)"
+              >
+                <td class="text-truncate">{{ p.nombre }}</td>
+                <td class="text-muted">{{ p.sku }}</td>
+                <td class="text-center">{{ (p.stock ?? 0) | number:'1.0-0' }}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-primary" (click)="agregarProductoRapido(p); $event.stopPropagation()">
+                    <i class="bi bi-cart-plus"></i> Agregar
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="!resultados().length">
+                <td colspan="4" class="text-center text-muted py-3">
+                  Empieza buscando un producto arriba o escanea un código.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
     <!-- ===================== LADO DERECHO: CARRITO / COBRO / DEVOLUCIONES ===================== -->
-    <div class="col-lg-4">
-
+    <div class="col-lg-7"><!-- ← más grande -->
       <!-- CLIENTE + MÉTODO PAGO -->
       <div class="card mb-3">
         <div class="card-body">
@@ -288,7 +282,6 @@
           </form>
         </div>
       </div>
-
     </div>
   </div>
 </div>

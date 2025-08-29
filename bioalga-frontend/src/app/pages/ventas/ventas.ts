@@ -10,8 +10,8 @@ import { VentasService } from '../../services/ventas.service';
 import { DevolucionesService } from '../../services/devoluciones.service';
 import { PreciosService } from '../../services/precios.service';
 import { ClientesService } from '../../services/clientes.service';
-import { ComprasService } from '../../services/compras.service';       // lookup productos
-import { InventarioService } from '../../services/inventario.service'; // stock actual
+import { ComprasService } from '../../services/compras.service';
+import { InventarioService } from '../../services/inventario.service';
 
 // Modelos
 import {
@@ -34,14 +34,13 @@ type ProductoCard = ProductoLookupDto & { precio?: number | null; stock?: number
   styleUrls: ['./ventas.css']
 })
 export class VentasPageComponent implements OnInit {
-
   private fb = inject(FormBuilder);
   private ventasApi = inject(VentasService);
   private devApi = inject(DevolucionesService);
   private preciosApi = inject(PreciosService);
   private clientesApi = inject(ClientesService);
-  private comprasApi = inject(ComprasService);       // lookup
-  private invApi = inject(InventarioService);        // stock
+  private comprasApi = inject(ComprasService);
+  private invApi = inject(InventarioService);
 
   cargando = signal(false);
 
@@ -51,18 +50,19 @@ export class VentasPageComponent implements OnInit {
   sugerencias = signal<ProductoCard[]>([]);
   resultados  = signal<ProductoCard[]>([]);
 
+  // Índice seleccionado en la tabla de resultados
+  selectedIndex = signal<number>(-1);
+
   // ======= Venta / Carrito
   formVenta = this.fb.group({
     clienteId: [null as number | null],
     metodoPago: ['Efectivo' as MetodoPago, Validators.required],
     efectivoRecibido: [0],
     ivaPct: [16],
-    tipoPrecio: ['Normal' as TipoPrecio] // Normal/Mayoreo/Descuento/Especial
+    tipoPrecio: ['Normal' as TipoPrecio]
   });
 
-  // Info de cliente detectado
   clienteDetectado = signal<ClienteDto | null>(null);
-
   lineas = signal<Array<VentaLineaCreate & { nombre?: string }>>([]);
 
   // Totales
@@ -76,9 +76,7 @@ export class VentasPageComponent implements OnInit {
   cambio = computed(() => {
     const mp = this.formVenta.value.metodoPago;
     const recibido = +(this.formVenta.value.efectivoRecibido || 0);
-    if (mp === 'Efectivo' || mp === 'Mixto') {
-      return Math.max(0, recibido - this.total());
-    }
+    if (mp === 'Efectivo' || mp === 'Mixto') return Math.max(0, recibido - this.total());
     return 0;
   });
 
@@ -93,19 +91,19 @@ export class VentasPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    // Autocomplete (igual que inventario) + enriquecimiento (precio/stock)
+    // Autocomplete + enriquecimiento (precio/stock)
     this.formBuscar.controls['q'].valueChanges?.pipe(
       debounceTime(250),
       distinctUntilChanged(),
       switchMap(q => {
         const s = (q ?? '').toString().trim();
-        if (s.length < 2) { this.showSugerencias.set(false); return of([] as ProductoLookupDto[]); }
+        if (s.length < 2) { this.showSugerencias.set(false); this.selectedIndex.set(-1); return of([] as ProductoLookupDto[]); }
         this.showSugerencias.set(true);
         return this.comprasApi.buscarProductos(s, 12);
       })
     ).subscribe({
-      next: list => this.enriquecerResultados(list),
-      error: () => { this.sugerencias.set([]); this.resultados.set([]); }
+      next: list => { this.enriquecerResultados(list); this.resetSelection(); },
+      error: () => { this.sugerencias.set([]); this.resultados.set([]); this.resetSelection(); }
     });
 
     // Cambia cliente -> set tipoPrecio y refresca precios
@@ -133,7 +131,7 @@ export class VentasPageComponent implements OnInit {
       });
     });
 
-    // Cambia tipoPrecio -> refresca precios de líneas y cards
+    // Cambia tipoPrecio -> refresca precios de líneas y resultados
     this.formVenta.controls['tipoPrecio'].valueChanges?.subscribe(() => {
       this.actualizarPreciosPorTipo();
       const current = this.resultados();
@@ -153,13 +151,14 @@ export class VentasPageComponent implements OnInit {
     this.sugerencias.set([]);
     this.resultados.set([]);
     this.showSugerencias.set(false);
+    this.resetSelection();
   }
   forzarBusqueda(): void {
     const q = (this.formBuscar.value.q || '').toString().trim();
     if (q.length >= 2) {
       this.comprasApi.buscarProductos(q, 20).subscribe({
-        next: list => { this.showSugerencias.set(false); this.enriquecerResultados(list); },
-        error: () => this.resultados.set([])
+        next: list => { this.showSugerencias.set(false); this.enriquecerResultados(list); this.resetSelection(); },
+        error: () => { this.resultados.set([]); this.resetSelection(); }
       });
     }
   }
@@ -168,30 +167,58 @@ export class VentasPageComponent implements OnInit {
     this.agregarProductoRapido(p);
   }
 
-  // ===== Enriquecer cards con precio y stock =====
+  // ===== Navegación con teclado en el input de búsqueda
+  onBuscadorKey(ev: KeyboardEvent): void {
+    const len = this.resultados().length;
+    if (!len) return;
+
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      this.moveSelection(+1);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      this.moveSelection(-1);
+    } else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const idx = this.selectedIndex();
+      const item = (idx >= 0 && idx < len) ? this.resultados()[idx] : this.resultados()[0];
+      if (item) this.agregarProductoRapido(item);
+    }
+  }
+  setSelected(i: number): void {
+    this.selectedIndex.set(i);
+  }
+  private moveSelection(delta: number): void {
+    const len = this.resultados().length;
+    if (!len) { this.selectedIndex.set(-1); return; }
+    let idx = this.selectedIndex();
+    idx = (idx < 0) ? 0 : idx + delta;
+    if (idx < 0) idx = 0;
+    if (idx > len - 1) idx = len - 1;
+    this.selectedIndex.set(idx);
+    // Asegurar visibilidad en scroll
+    const el = document.getElementById('row-res-' + idx);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+  private resetSelection(): void {
+    this.selectedIndex.set(this.resultados().length ? 0 : -1);
+  }
+
+  // ===== Enriquecer resultados con precio y stock
   private enriquecerResultados(list: ProductoLookupDto[], soloPrecio = false): void {
     const tipo = (this.formVenta.value.tipoPrecio as TipoPrecio) || 'Normal';
-
-    const precios$ = forkJoin(
-      list.map(p => this.preciosApi.obtenerVigente(p.id_Producto, tipo))
-    );
+    const precios$ = forkJoin(list.map(p => this.preciosApi.obtenerVigente(p.id_Producto, tipo)));
 
     if (soloPrecio) {
       precios$.subscribe(prices => {
-        const enriched: ProductoCard[] = list.map((p, i) => ({
-          ...p,
-          precio: prices[i] ?? 0
-        }));
+        const enriched: ProductoCard[] = list.map((p, i) => ({ ...p, precio: prices[i] ?? 0 }));
         this.sugerencias.set(enriched);
         this.resultados.set(enriched);
       });
       return;
     }
 
-    const stocks$ = forkJoin(
-      list.map(p => this.invApi.stockActual(p.id_Producto))
-    );
-
+    const stocks$ = forkJoin(list.map(p => this.invApi.stockActual(p.id_Producto)));
     forkJoin([precios$, stocks$]).subscribe({
       next: ([prices, stocks]) => {
         const enriched: ProductoCard[] = list.map((p, i) => {
@@ -209,7 +236,7 @@ export class VentasPageComponent implements OnInit {
     });
   }
 
-  // ===== Cálculos =====
+  // ===== Cálculos
   private calcularIvaUnitario(precio: number): number {
     const pct = Number(this.formVenta.value.ivaPct ?? 0);
     return +(precio * (pct / 100)).toFixed(2);
@@ -221,13 +248,12 @@ export class VentasPageComponent implements OnInit {
     })));
   }
 
-  // ===== Carrito =====
+  // ===== Carrito
   agregarProductoRapido(p: ProductoLookupDto): void {
     const idx = this.lineas().findIndex(x => x.idProducto === p.id_Producto);
     if (idx >= 0) { this.cambiarCantidad(idx, +1); return; }
 
     const tipo = (this.formVenta.value.tipoPrecio as TipoPrecio) || 'Normal';
-
     const agregar = (precio: number) => {
       const ivaU = this.calcularIvaUnitario(precio);
       this.lineas.update(arr => [...arr, {
@@ -236,18 +262,13 @@ export class VentasPageComponent implements OnInit {
         precioUnitario: precio,
         descuentoUnitario: 0,
         ivaUnitario: ivaU,
-        nombre: p.nombre
+        nombre: (p as any).nombre
       }]);
     };
 
-    // Si el lookup ya viene con precio de la card, úsalo
     const precioCard = (p as any).precio;
-    if (precioCard != null) {
-      agregar(+precioCard);
-      return;
-    }
+    if (precioCard != null) { agregar(+precioCard); return; }
 
-    // Consultar precio vigente si el lookup no lo trae
     this.cargando.set(true);
     this.preciosApi.obtenerVigente(p.id_Producto, tipo).subscribe({
       next: (precio) => agregar(precio ?? 0),
@@ -271,7 +292,6 @@ export class VentasPageComponent implements OnInit {
     this.lineas.update(arr => [...arr]);
   }
 
-  /** Recalcula los precios de todas las líneas al cambiar tipoPrecio */
   private actualizarPreciosPorTipo(): void {
     const tipo = (this.formVenta.value.tipoPrecio as TipoPrecio) || 'Normal';
     const arr = this.lineas();
@@ -286,20 +306,17 @@ export class VentasPageComponent implements OnInit {
           ivaUnitario: this.calcularIvaUnitario(precios[i] ?? l.precioUnitario)
         })));
       },
-      error: () => { /* deja los precios como estaban */ },
+      error: () => {},
       complete: () => this.cargando.set(false)
     });
   }
-
   private actualuarPreciosSiHayLineas(): void {
     if (this.lineas().length) this.actualizarPreciosPorTipo();
   }
 
-  // ===== Acciones =====
+  // ===== Acciones
   cobrar(): void {
-    if (!this.lineas().length) {
-      Swal.fire('Aviso', 'Agrega al menos un producto.', 'info'); return;
-    }
+    if (!this.lineas().length) { Swal.fire('Aviso', 'Agrega al menos un producto.', 'info'); return; }
 
     const mp = this.formVenta.value.metodoPago!;
     const req: VentaCreateRequest = {
@@ -369,7 +386,6 @@ export class VentasPageComponent implements OnInit {
         <div class="small text-muted mt-2">Método: ${v.metodoPago}</div>
       </div>`;
   }
-
   private extractErr(e: any): string {
     if (e?.error?.detail) return e.error.detail;
     if (e?.error?.title) return e.error.title;
