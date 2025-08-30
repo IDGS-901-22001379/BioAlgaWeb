@@ -1,41 +1,55 @@
-// Línea de devolución (request)
+// src/app/models/devolucion-dtos.model.ts
 export interface DevolucionLineaCreate {
   idProducto: number;
   cantidad: number;
-  precioUnitario: number;
-  ivaUnitario: number;
+  /** Importe TOTAL de la línea (precio ya con IVA/lo que corresponda) */
+  importeLineaTotal: number;
 }
 
-// Crear devolución (request)
 export interface DevolucionCreateRequest {
-  idVenta: number;
-  motivo: string;            // 'defecto', 'garantía', etc.
-  reingresaInventario: boolean; // true=Entrada, false=Merma/Ajuste
+  motivo: string;
+  regresaInventario: boolean;
+  /** opcional, folio/ticket o texto libre */
+  referencia?: string | null;
+  /** opcional */
+  notas?: string | null;
   lineas: DevolucionLineaCreate[];
 }
 
-// Devolución (response)
+export interface DevolucionDetalleDto {
+  idProducto: number;
+  productoNombre?: string | null;
+  cantidad: number;
+  importeLineaTotal: number;
+}
+
 export interface DevolucionDto {
   idDevolucion: number;
-  idVenta: number;
-  fecha: string; // ISO
+  fecha: string;                 // ISO string
   motivo: string;
-  reingresaInventario: boolean;
-
-  subtotal: number;
-  impuestos: number;
-  total: number;
-
-  lineas: DevolucionLineaCreate[];
+  referencia?: string | null;
+  notas?: string | null;
+  regresaInventario: boolean;
+  totalDevuelto: number;
+  usuarioNombre?: string | null;
+  detalles: DevolucionDetalleDto[];
 }
 
-// Parámetros de búsqueda/listado
+/** filtros/paginación */
+export type DevolucionSortBy = 'fecha' | 'idDevolucion' | 'totalDevuelto';
+
 export interface DevolucionQueryParams {
-  idVenta?: number;
-  fechaDesde?: string | null;
-  fechaHasta?: string | null;
+  q?: string;
   page?: number;
   pageSize?: number;
-  sortBy?: string;  // 'fecha'
+  sortBy?: DevolucionSortBy;
   sortDir?: 'asc' | 'desc';
+}
+
+/** genérico que ya usas en otros módulos */
+export interface PagedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

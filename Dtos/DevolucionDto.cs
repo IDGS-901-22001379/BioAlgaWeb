@@ -1,20 +1,30 @@
 using System;
-using System.Collections.Generic;
 
-namespace BioAlga.Backend.Dtos;
-
-public class DevolucionDto
+namespace BioAlga.Backend.Dtos
 {
-    public int IdDevolucion { get; set; }
-    public int IdVenta { get; set; }
-    public DateTime Fecha { get; set; }
+    /// <summary>
+    /// DTO para listar y ver detalle de una devolución.
+    /// </summary>
+    public class DevolucionDto
+    {
+        public int IdDevolucion { get; set; }
+        public DateTime FechaDevolucion { get; set; }
 
-    public string Motivo { get; set; } = string.Empty;
-    public bool ReingresaInventario { get; set; }
+        public int IdUsuario { get; set; }
+        public string UsuarioNombre { get; set; } = string.Empty;
 
-    public decimal Subtotal { get; set; }
-    public decimal Impuestos { get; set; }
-    public decimal Total { get; set; }
+        public string Motivo { get; set; } = string.Empty;
+        public bool RegresaInventario { get; set; }
 
-    public List<DevolucionLineaCreate> Lineas { get; set; } = new();
+        /// <summary>
+        /// Total devuelto (lo que se descuenta de ventas del día).
+        /// </summary>
+        public decimal TotalDevuelto { get; set; }
+
+        public string? ReferenciaVenta { get; set; }
+        public string? Notas { get; set; }
+
+        public int NumeroLineas { get; set; }         // para listados rápidos
+        public List<DevolucionDetalleDto> Detalles { get; set; } = new();
+    }
 }

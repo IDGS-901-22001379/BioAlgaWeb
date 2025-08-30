@@ -7,22 +7,22 @@ import Swal from 'sweetalert2';
 
 // Servicios
 import { VentasService } from '../../services/ventas.service';
-import { DevolucionesService } from '../../services/devoluciones.service';
 import { PreciosService } from '../../services/precios.service';
 import { ClientesService } from '../../services/clientes.service';
 import { ComprasService } from '../../services/compras.service';
 import { InventarioService } from '../../services/inventario.service';
 
-// Modelos
+// Modelos (ventas)
 import {
   VentaCreateRequest,
   VentaLineaCreate,
   MetodoPago,
-  // NUEVO
   VentaResumenDto,
   VentaDetalleDto,
   VentaQueryParams,
 } from '../../models/venta-dtos.model';
+
+// Modelos (productos / precios / clientes / inv)
 import { ProductoLookupDto } from '../../models/producto-lookup.model';
 import { TipoPrecio } from '../../models/precio.model';
 import { ClienteDto } from '../../models/cliente.model';
@@ -41,7 +41,6 @@ type ProductoCard = ProductoLookupDto & { precio?: number | null; stock?: number
 export class VentasPageComponent implements OnInit {
   private fb = inject(FormBuilder);
   private ventasApi = inject(VentasService);
-  private devApi = inject(DevolucionesService);
   private preciosApi = inject(PreciosService);
   private clientesApi = inject(ClientesService);
   private comprasApi = inject(ComprasService);
@@ -86,19 +85,8 @@ export class VentasPageComponent implements OnInit {
   });
 
   // ======= MODALES =======
-  showDevModal = signal(false);          // Devoluciones (botón rojo)
-  showVentasDiaModal = signal(false);    // Ventas del día / por fecha (botón azul)
-  showDetalleModal = signal(false);      // Detalle de una venta (desde el modal azul)
-
-  // ======= Devolución (ahora en modal) =======
-  formDev = this.fb.group({
-    idVenta: [null as number | null, Validators.required],
-    motivo: ['defecto', Validators.required],
-    reingresaInventario: [true],
-    idProducto: [null as number | null, Validators.required],
-    cantidad: [1, [Validators.required, Validators.min(1)]],
-    ivaUnitario: [0]
-  });
+  showVentasDiaModal = signal(false);    // Ventas del día / por fecha
+  showDetalleModal = signal(false);      // Detalle de una venta
 
   // ======= Ventas día/fecha =======
   fechaSeleccionada = signal<string>(this.hoyISO()); // yyyy-MM-dd
@@ -255,7 +243,7 @@ export class VentasPageComponent implements OnInit {
     });
   }
 
-  // ===== Cálculos
+  // ===== Cálculos (ventas)
   private calcularIvaUnitario(precio: number): number {
     const pct = Number(this.formVenta.value.ivaPct ?? 0);
     return +(precio * (pct / 100)).toFixed(2);
@@ -267,7 +255,7 @@ export class VentasPageComponent implements OnInit {
     })));
   }
 
-  // ===== Carrito
+  // ===== Carrito (ventas)
   agregarProductoRapido(p: ProductoLookupDto): void {
     const idx = this.lineas().findIndex(x => x.idProducto === p.id_Producto);
     if (idx >= 0) { this.cambiarCantidad(idx, +1); return; }
@@ -333,11 +321,11 @@ export class VentasPageComponent implements OnInit {
     if (this.lineas().length) this.actualizarPreciosPorTipo();
   }
 
-  // ===== Acciones
+  // ===== Acciones (ventas)
   cobrar(): void {
     if (!this.lineas().length) { Swal.fire('Aviso', 'Agrega al menos un producto.', 'info'); return; }
 
-    const mp = this.formVenta.value.metodoPago!;
+    const mp = this.formVenta.value.metodoPago! as MetodoPago;
     const req: VentaCreateRequest = {
       clienteId: this.formVenta.value.clienteId ?? null,
       metodoPago: mp,
@@ -367,38 +355,7 @@ export class VentasPageComponent implements OnInit {
     });
   }
 
-  // ============ NUEVO: MODAL DEVOLUCIONES ============
-  abrirDevModal(): void { this.showDevModal.set(true); }
-  cerrarDevModal(): void { this.showDevModal.set(false); }
-
-  registrarDevolucion(): void {
-    if (this.formDev.invalid) { this.formDev.markAllAsTouched(); return; }
-    const v = this.formDev.getRawValue();
-    const body = {
-      idVenta: v.idVenta!,
-      motivo: v.motivo!,
-      reingresaInventario: !!v.reingresaInventario,
-      lineas: [{
-        idProducto: v.idProducto!,
-        cantidad: v.cantidad!,
-        precioUnitario: 0,
-        ivaUnitario: v.ivaUnitario ?? 0
-      }]
-    };
-
-    this.cargando.set(true);
-    this.devApi.create(body as any).subscribe({
-      next: (id) => {
-        Swal.fire('Devolución registrada', `Folio #${id}`, 'success');
-        this.formDev.reset({ idVenta: null, motivo: 'defecto', reingresaInventario: true, idProducto: null, cantidad: 1, ivaUnitario: 0 });
-        this.cerrarDevModal();
-      },
-      error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo registrar la devolución', 'error'),
-      complete: () => this.cargando.set(false)
-    });
-  }
-
-  // ============ NUEVO: MODAL VENTAS DEL DÍA / FECHA ============
+  // ============ MODAL VENTAS DEL DÍA / FECHA ============
   abrirVentasDiaModal(): void {
     this.showVentasDiaModal.set(true);
     this.cargarVentasDeFecha(this.fechaSeleccionada());
@@ -439,7 +396,7 @@ export class VentasPageComponent implements OnInit {
     });
   }
 
-  // ============ NUEVO: MODAL DETALLE DE VENTA ============
+  // ============ MODAL DETALLE DE VENTA ============
   verDetallesVenta(idVenta: number): void {
     this.cargandoDetalle.set(true);
     this.ventasApi.obtenerDetalle(idVenta).subscribe({

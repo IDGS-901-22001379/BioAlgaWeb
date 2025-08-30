@@ -31,8 +31,9 @@ namespace BioAlga.Backend.Data
         public DbSet<Venta> Ventas { get; set; } = null!;
         public DbSet<DetalleVenta> DetalleVentas { get; set; } = null!;
 
-        public DbSet<Devolucion> Devoluciones { get; set; } = null!;
-        public DbSet<DetalleDevolucion> DetalleDevoluciones { get; set; } = null!;
+        // --- DEVOLUCIONES (nuevo esquema) ---
+        public DbSet<Devolucion> Devoluciones => Set<Devolucion>();
+        public DbSet<DetalleDevolucion> DetalleDevoluciones => Set<DetalleDevolucion>();
 
         public DbSet<CajaApertura> CajaAperturas { get; set; } = null!;
         public DbSet<CajaMovimiento> CajaMovimientos { get; set; } = null!;
@@ -549,42 +550,42 @@ namespace BioAlga.Backend.Data
             // VENTAS (nuevo)
             // ============================================
             // -------- Venta --------
-        modelBuilder.Entity<Venta>(e =>
-        {
-            e.HasKey(x => x.IdVenta);
-            e.Property(x => x.MetodoPago).HasConversion<string>(); // ENUM->varchar
-            e.Property(x => x.Estatus).HasConversion<string>();     // ENUM->varchar
+            modelBuilder.Entity<Venta>(e =>
+            {
+                e.HasKey(x => x.IdVenta);
+                e.Property(x => x.MetodoPago).HasConversion<string>(); // ENUM->varchar
+                e.Property(x => x.Estatus).HasConversion<string>();     // ENUM->varchar
 
-            e.HasOne(v => v.Cliente)
-             .WithMany()
-             .HasForeignKey(v => v.ClienteId)
-             .HasConstraintName("fk_venta_cliente");
+                e.HasOne(v => v.Cliente)
+                 .WithMany()
+                 .HasForeignKey(v => v.ClienteId)
+                 .HasConstraintName("fk_venta_cliente");
 
-            e.HasOne(v => v.Usuario)
-             .WithMany()
-             .HasForeignKey(v => v.IdUsuario)
-             .HasConstraintName("fk_venta_usuario");
+                e.HasOne(v => v.Usuario)
+                 .WithMany()
+                 .HasForeignKey(v => v.IdUsuario)
+                 .HasConstraintName("fk_venta_usuario");
 
-            e.HasMany(v => v.Detalles)
-             .WithOne(d => d.Venta!)
-             .HasForeignKey(d => d.IdVenta)
-             .OnDelete(DeleteBehavior.Cascade)
-             .HasConstraintName("fk_dventa_venta");
-        });
+                e.HasMany(v => v.Detalles)
+                 .WithOne(d => d.Venta!)
+                 .HasForeignKey(d => d.IdVenta)
+                 .OnDelete(DeleteBehavior.Cascade)
+                 .HasConstraintName("fk_dventa_venta");
+            });
 
-        // -------- DetalleVenta --------
-        modelBuilder.Entity<DetalleVenta>(e =>
-        {
-            e.HasKey(x => x.IdDetalle);
+            // -------- DetalleVenta --------
+            modelBuilder.Entity<DetalleVenta>(e =>
+            {
+                e.HasKey(x => x.IdDetalle);
 
-            e.HasOne(d => d.Producto)
-             .WithMany()
-             .HasForeignKey(d => d.IdProducto)
-             .HasConstraintName("fk_dventa_prod");
-        });
+                e.HasOne(d => d.Producto)
+                 .WithMany()
+                 .HasForeignKey(d => d.IdProducto)
+                 .HasConstraintName("fk_dventa_prod");
+            });
 
             // ============================================
-            // DEVOLUCIONES (nuevo)
+            // DEVOLUCIONES (nuevo esquema)
             // ============================================
             modelBuilder.Entity<Devolucion>(e =>
             {
@@ -593,20 +594,54 @@ namespace BioAlga.Backend.Data
                 e.HasKey(x => x.IdDevolucion);
                 e.Property(x => x.IdDevolucion).HasColumnName("id_devolucion");
 
-                e.Property(x => x.IdVenta).HasColumnName("id_venta");
-                e.Property(x => x.Fecha).HasColumnName("fecha");
-                e.Property(x => x.Motivo).HasColumnName("motivo").HasMaxLength(120);
-                e.Property(x => x.ReingresaInventario).HasColumnName("reingresa_inventario");
+                e.Property(x => x.FechaDevolucion)
+                    .HasColumnName("fecha_devolucion")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                 e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
 
-                e.Property(x => x.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
+                e.Property(x => x.UsuarioNombre)
+                    .HasColumnName("usuario_nombre")
+                    .HasMaxLength(120)
+                    .IsRequired();
 
-                e.HasOne(x => x.Venta)
+                e.Property(x => x.Motivo)
+                    .HasColumnName("motivo")
+                    .HasMaxLength(300)
+                    .IsRequired();
+
+                e.Property(x => x.RegresaInventario)
+                    .HasColumnName("regresa_inventario")
+                    .IsRequired();
+
+                e.Property(x => x.TotalDevuelto)
+                    .HasColumnName("total_devuelto")
+                    .HasColumnType("decimal(12,2)")
+                    .IsRequired();
+
+                e.Property(x => x.ReferenciaVenta)
+                    .HasColumnName("referencia_venta")
+                    .HasMaxLength(50);
+
+                e.Property(x => x.Notas)
+                    .HasColumnName("notas");
+
+                // FK Usuario (solo integridad; el nombre lo congelamos en UsuarioNombre)
+                e.HasOne(x => x.Usuario)
                  .WithMany()
-                 .HasForeignKey(x => x.IdVenta)
-                 .OnDelete(DeleteBehavior.NoAction);
+                 .HasForeignKey(x => x.IdUsuario)
+                 .OnDelete(DeleteBehavior.NoAction)
+                 .HasConstraintName("fk_devol_usuario");
+
+                // Relación con detalles
+                e.HasMany(x => x.Detalles)
+                 .WithOne(d => d.Devolucion!)
+                 .HasForeignKey(d => d.IdDevolucion)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                // Índices útiles
+                e.HasIndex(x => x.FechaDevolucion).HasDatabaseName("idx_devol_fecha");
+                e.HasIndex(x => x.IdUsuario).HasDatabaseName("idx_devol_usuario");
             });
 
             modelBuilder.Entity<DetalleDevolucion>(e =>
@@ -619,14 +654,25 @@ namespace BioAlga.Backend.Data
                 e.Property(x => x.IdDevolucion).HasColumnName("id_devolucion");
                 e.Property(x => x.IdProducto).HasColumnName("id_producto");
 
-                e.Property(x => x.Cantidad).HasColumnName("cantidad");
-                e.Property(x => x.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)");
-                e.Property(x => x.IvaUnitario).HasColumnName("iva_unitario").HasColumnType("decimal(10,2)");
+                e.Property(x => x.ProductoNombre)
+                    .HasColumnName("producto_nombre")
+                    .HasMaxLength(150)
+                    .IsRequired();
 
-                e.HasOne(x => x.Devolucion)
-                 .WithMany(d => d.Detalle)
-                 .HasForeignKey(x => x.IdDevolucion)
-                 .OnDelete(DeleteBehavior.Cascade);
+                e.Property(x => x.Cantidad)
+                    .HasColumnName("cantidad")
+                    .IsRequired();
+
+                e.Property(x => x.ImporteLineaTotal)
+                    .HasColumnName("importe_linea_total")
+                    .HasColumnType("decimal(12,2)")
+                    .IsRequired();
+
+                // Opcional: relación para navegación a Producto (no exigida por la BD)
+                e.HasOne(d => d.Producto)
+                 .WithMany()
+                 .HasForeignKey(d => d.IdProducto)
+                 .OnDelete(DeleteBehavior.NoAction);
             });
 
 

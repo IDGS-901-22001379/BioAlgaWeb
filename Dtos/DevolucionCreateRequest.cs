@@ -1,18 +1,38 @@
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace BioAlga.Backend.Dtos;
-
-public class DevolucionCreateRequest
+namespace BioAlga.Backend.Dtos
 {
-    [Required] public int IdVenta { get; set; }
+    /// <summary>
+    /// Request para crear una Devolución SIN obligar número de venta.
+    /// El backend calculará TotalDevuelto = suma de líneas.
+    /// Además, sobreescribirá UsuarioNombre usando el usuario autenticado.
+    /// </summary>
+    public class DevolucionCreateRequest
+    {
+        [Required]
+        [MaxLength(300)]
+        public string Motivo { get; set; } = string.Empty;
 
-    [Required, MaxLength(120)]
-    public string Motivo { get; set; } = "defecto"; // daño, garantía, error, etc.
+        /// <summary>
+        /// 1 = regresa inventario; 0 = no (dañado).
+        /// </summary>
+        public bool RegresaInventario { get; set; } = true;
 
-    // true = reingresa a stock (Entrada); false = no reingresa (Merma/Ajuste)
-    public bool ReingresaInventario { get; set; } = true;
+        /// <summary>
+        /// Opcional: ticket/folio si se conoce.
+        /// </summary>
+        [MaxLength(50)]
+        public string? ReferenciaVenta { get; set; }
 
-    [MinLength(1)]
-    public List<DevolucionLineaCreate> Lineas { get; set; } = new();
+        /// <summary>
+        /// Observaciones opcionales.
+        /// </summary>
+        public string? Notas { get; set; }
+
+        /// <summary>
+        /// Líneas devueltas. Debe tener al menos 1.
+        /// </summary>
+        [MinLength(1)]
+        public List<DevolucionLineaCreate> Lineas { get; set; } = new();
+    }
 }

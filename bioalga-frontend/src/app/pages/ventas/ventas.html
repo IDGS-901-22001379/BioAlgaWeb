@@ -21,9 +21,6 @@
               <i class="bi bi-upc-scan"></i>
             </button>
           </div>
-
-          <!-- (Opcional) lista de sugerencias bajo el input -->
-          <!-- deja tu implementación aquí si la tenías en otro template -->
         </div>
       </div>
 
@@ -44,8 +41,8 @@
             </thead>
             <tbody>
               <tr *ngFor="let p of resultados(); let i = index" [id]="'row-res-'+i"
-                [class.table-active]="i === selectedIndex()" (mouseenter)="setSelected(i)"
-                (click)="agregarProductoRapido(p)">
+                  [class.table-active]="i === selectedIndex()" (mouseenter)="setSelected(i)"
+                  (click)="agregarProductoRapido(p)">
                 <td class="text-truncate">{{ p.nombre }}</td>
                 <td class="text-muted">{{ p.sku }}</td>
                 <td class="text-center">{{ (p.stock ?? 0) | number:'1.0-0' }}</td>
@@ -217,12 +214,9 @@
             <i class="bi bi-cash-coin"></i> Cobrar
           </button>
 
-          <!-- NUEVOS BOTONES DEBAJO DEL CARRITO -->
-          <div class="d-flex gap-2 mt-3">
-            <button class="btn btn-danger flex-fill" type="button" (click)="abrirDevModal()">
-              <i class="bi bi-arrow-counterclockwise"></i> Devoluciones
-            </button>
-            <button class="btn btn-primary flex-fill" type="button" (click)="abrirVentasDiaModal()">
+          <!-- BOTÓN: Ventas del día -->
+          <div class="mt-3">
+            <button class="btn btn-primary w-100" type="button" (click)="abrirVentasDiaModal()">
               <i class="bi bi-calendar3"></i> Ventas del día
             </button>
           </div>
@@ -233,60 +227,13 @@
 </div>
 
 <!-- =================================================================================== -->
-<!-- =============================== MODALES NUEVOS =================================== -->
+<!-- =================================== MODALES ====================================== -->
 <!-- =================================================================================== -->
-
-<!-- Modal: Devolución rápida -->
-<div class="modal fade" tabindex="-1" [class.show]="showDevModal()"
-  [ngStyle]="{display: showDevModal() ? 'block' : 'none'}" *ngIf="showDevModal()">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Devolución rápida</h5>
-        <button type="button" class="btn-close btn-close-white" (click)="cerrarDevModal()"></button>
-      </div>
-      <div class="modal-body">
-        <form [formGroup]="formDev" class="row g-2 align-items-end">
-          <div class="col-4">
-            <label class="form-label">Venta #</label>
-            <input type="number" class="form-control" formControlName="idVenta">
-          </div>
-          <div class="col-8">
-            <label class="form-label">Motivo</label>
-            <input type="text" class="form-control" formControlName="motivo" placeholder="daño, error, garantía…">
-          </div>
-          <div class="col-6">
-            <label class="form-label">Id Producto</label>
-            <input type="number" class="form-control" formControlName="idProducto">
-          </div>
-          <div class="col-3">
-            <label class="form-label">Cant</label>
-            <input type="number" min="1" class="form-control" formControlName="cantidad">
-          </div>
-          <div class="col-3">
-            <label class="form-label">IVA/U</label>
-            <input type="number" min="0" step="0.01" class="form-control" formControlName="ivaUnitario">
-          </div>
-          <div class="col-6 form-check ms-2">
-            <input class="form-check-input" type="checkbox" formControlName="reingresaInventario" id="chkReingresa">
-            <label class="form-check-label" for="chkReingresa">Reingresa a inventario</label>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline-secondary" type="button" (click)="cerrarDevModal()">Cerrar</button>
-        <button class="btn btn-danger" type="button" (click)="registrarDevolucion()" [disabled]="cargando()">Registrar
-          devolución</button>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal-backdrop fade show" *ngIf="showDevModal()"></div>
 
 <!-- Modal: Ventas del día / por fecha -->
 <div class="modal fade" tabindex="-1" [class.show]="showVentasDiaModal()"
-  [ngStyle]="{display: showVentasDiaModal() ? 'block' : 'none'}" *ngIf="showVentasDiaModal()">
-  <div class="modal-dialog modal-xl"> <!-- grande pero no pantalla completa -->
+     [ngStyle]="{display: showVentasDiaModal() ? 'block' : 'none'}" *ngIf="showVentasDiaModal()">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title">
@@ -300,7 +247,7 @@
           <div class="col-md-4">
             <label class="form-label">Fecha</label>
             <input #fecha type="date" class="form-control" [value]="fechaSeleccionada()"
-              (change)="onFechaCalendarioChange(fecha.value)" />
+                   (change)="onFechaCalendarioChange(fecha.value)" />
           </div>
 
           <div class="col-md-8 text-md-end">
@@ -335,7 +282,7 @@
                 <td>{{ v.metodoPago }}</td>
                 <td>
                   <span class="badge" [class.bg-success]="v.estatus==='Pagada'"
-                    [class.bg-secondary]="v.estatus!=='Pagada'">
+                        [class.bg-secondary]="v.estatus!=='Pagada'">
                     {{ v.estatus }}
                   </span>
                 </td>
@@ -354,7 +301,9 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary" type="button" (click)="cerrarVentasDiaModal()">Cerrar</button>
+        <button class="btn btn-outline-secondary" type="button" (click)="cerrarVentasDiaModal()">
+          Cerrar
+        </button>
       </div>
     </div>
   </div>
@@ -363,7 +312,7 @@
 
 <!-- Modal: Detalle de Venta -->
 <div class="modal fade" tabindex="-1" [class.show]="showDetalleModal()"
-  [ngStyle]="{display: showDetalleModal() ? 'block' : 'none'}" *ngIf="showDetalleModal() && ventaDetalle()">
+     [ngStyle]="{display: showDetalleModal() ? 'block' : 'none'}" *ngIf="showDetalleModal() && ventaDetalle()">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
@@ -383,21 +332,17 @@
             <div>
               <b>Estatus:</b>
               <span class="badge" [class.bg-success]="ventaDetalle()?.estatus==='Pagada'"
-                [class.bg-secondary]="ventaDetalle()?.estatus!=='Pagada'">
+                    [class.bg-secondary]="ventaDetalle()?.estatus!=='Pagada'">
                 {{ ventaDetalle()?.estatus }}
               </span>
             </div>
           </div>
           <div class="col-md-5">
-            <div class="d-flex justify-content-between"><span>Subtotal</span><b>{{ ventaDetalle()?.subtotal |
-                number:'1.2-2' }}</b></div>
-            <div class="d-flex justify-content-between"><span>Impuestos</span><b>{{ ventaDetalle()?.impuestos |
-                number:'1.2-2' }}</b></div>
-            <div class="d-flex justify-content-between fs-5"><span>Total</span><b>{{ ventaDetalle()?.total |
-                number:'1.2-2' }}</b></div>
+            <div class="d-flex justify-content-between"><span>Subtotal</span><b>{{ ventaDetalle()?.subtotal | number:'1.2-2' }}</b></div>
+            <div class="d-flex justify-content-between"><span>Impuestos</span><b>{{ ventaDetalle()?.impuestos | number:'1.2-2' }}</b></div>
+            <div class="d-flex justify-content-between fs-5"><span>Total</span><b>{{ ventaDetalle()?.total | number:'1.2-2' }}</b></div>
             <div *ngIf="ventaDetalle()?.cambio">
-              <div class="d-flex justify-content-between"><span>Cambio</span><b class="text-success">{{
-                  ventaDetalle()?.cambio | number:'1.2-2' }}</b></div>
+              <div class="d-flex justify-content-between"><span>Cambio</span><b class="text-success">{{ ventaDetalle()?.cambio | number:'1.2-2' }}</b></div>
             </div>
           </div>
         </div>
@@ -416,8 +361,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let d of (ventaDetalle()?.detalles || [])">
-                <td>{{ d.productoNombre }} <small class="text-muted" *ngIf="d.codigoSku">({{ d.codigoSku }})</small>
-                </td>
+                <td>{{ d.productoNombre }} <small class="text-muted" *ngIf="d.codigoSku">({{ d.codigoSku }})</small></td>
                 <td class="text-center">{{ d.cantidad }}</td>
                 <td class="text-end">{{ d.precioUnitario | number:'1.2-2' }}</td>
                 <td class="text-end">{{ d.descuentoUnitario | number:'1.2-2' }}</td>

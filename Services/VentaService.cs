@@ -7,6 +7,7 @@ using BioAlga.Backend.Models;
 using BioAlga.Backend.Models.Enums;
 using BioAlga.Backend.Repositories.Interfaces;
 using BioAlga.Backend.Services.Interfaces;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
 namespace BioAlga.Backend.Services
 {
@@ -143,7 +144,8 @@ namespace BioAlga.Backend.Services
                         Cantidad       = d.Cantidad,
                         Fecha          = venta.FechaVenta,
                         TipoMovimiento = nameof(TipoMovimiento.Salida),
-                        OrigenTipo     = nameof(OrigenMovimiento.Venta),
+                        OrigenTipo = "Venta",
+
                         OrigenId       = venta.IdVenta,
                         IdUsuario      = idUsuario,
                         Referencia     = $"Venta #{venta.IdVenta}"
@@ -205,7 +207,7 @@ namespace BioAlga.Backend.Services
                         Cantidad       = d.Cantidad,
                         Fecha          = DateTime.UtcNow,
                         TipoMovimiento = nameof(TipoMovimiento.Entrada),
-                        OrigenTipo     = nameof(OrigenMovimiento.Venta),
+                        OrigenTipo = "Venta",
                         OrigenId       = venta.IdVenta,
                         IdUsuario      = idUsuario,
                         Referencia     = $"Cancelación venta #{venta.IdVenta}"

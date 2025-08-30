@@ -1,37 +1,33 @@
 using AutoMapper;
-using BioAlga.Backend.Models;
 using BioAlga.Backend.Dtos;
+using BioAlga.Backend.Models;
 
-namespace BioAlga.Backend.Mapping;
-
-public class DevolucionProfile : Profile
+namespace BioAlga.Backend.Mapping
 {
-    public DevolucionProfile()
+    public class DevolucionProfile : Profile
     {
-        // ===== Modelo -> DTO =====
-        CreateMap<Devolucion, DevolucionDto>()
-            .ForMember(d => d.IdDevolucion, o => o.MapFrom(s => s.IdDevolucion))
-            .ForMember(d => d.IdVenta, o => o.MapFrom(s => s.IdVenta))
-            .ForMember(d => d.Fecha, o => o.MapFrom(s => s.Fecha))
-            .ForMember(d => d.Motivo, o => o.MapFrom(s => s.Motivo))
-            .ForMember(d => d.ReingresaInventario, o => o.MapFrom(s => s.ReingresaInventario))
-            .ForMember(d => d.Subtotal, o => o.MapFrom(s => s.Subtotal))
-            .ForMember(d => d.Impuestos, o => o.MapFrom(s => s.Impuestos))
-            .ForMember(d => d.Total, o => o.MapFrom(s => s.Total))
-            .ForMember(d => d.Lineas, o => o.MapFrom(s =>
-                s.Detalle.Select(l => new DevolucionLineaCreate
-                {
-                    IdProducto = l.IdProducto,
-                    Cantidad = l.Cantidad,
-                    PrecioUnitario = l.PrecioUnitario,
-                    IvaUnitario = l.IvaUnitario
-                }).ToList()
-            ));
+        public DevolucionProfile()
+        {
+            // ===== Entity -> DTO =====
+            CreateMap<DetalleDevolucion, DevolucionDetalleDto>();
 
-        // ===== DTO Create -> Modelo =====
-        CreateMap<DevolucionCreateRequest, Devolucion>()
-            .ForMember(d => d.Detalle, o => o.Ignore()); // igual, se asigna después
+            CreateMap<Devolucion, DevolucionDto>()
+                .ForMember(d => d.NumeroLineas, o => o.MapFrom(s => s.Detalles.Count))
+                .ForMember(d => d.Detalles, o => o.MapFrom(s => s.Detalles));
 
-        CreateMap<DevolucionLineaCreate, DetalleDevolucion>();
+            // ===== CreateRequest -> Entity =====
+            CreateMap<DevolucionLineaCreate, DetalleDevolucion>()
+                .ForMember(d => d.IdDetalle, o => o.Ignore())
+                .ForMember(d => d.ProductoNombre, o => o.Ignore()) // se llena en Service con snapshot del producto
+                .ForMember(d => d.IdDevolucion, o => o.Ignore());  // lo asigna EF
+
+            CreateMap<DevolucionCreateRequest, Devolucion>()
+                .ForMember(d => d.IdDevolucion, o => o.Ignore())
+                .ForMember(d => d.FechaDevolucion, o => o.Ignore())  // se deja default SQL/UTC
+                .ForMember(d => d.IdUsuario, o => o.Ignore())        // se toma del contexto/autenticación
+                .ForMember(d => d.UsuarioNombre, o => o.Ignore())    // lo arma el Service con nombre del usuario
+                .ForMember(d => d.TotalDevuelto, o => o.Ignore())    // suma de líneas en Service
+                .ForMember(d => d.Detalles, o => o.MapFrom(s => s.Lineas));
+        }
     }
 }

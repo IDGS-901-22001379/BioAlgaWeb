@@ -29,11 +29,21 @@ namespace BioAlga.Backend.Services
             return sb.ToString();
         }
 
-        public async Task<UsuarioDto?> ObtenerPorIdAsync(int id)
+        // ============================================
+        // NUEVO: estándar GetByIdAsync (con y sin CT)
+        // Mantengo ObtenerPorIdAsync como alias para compatibilidad
+        // ============================================
+        public async Task<UsuarioDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var u = await _repo.GetByIdAsync(id);
             return u is null ? null : _mapper.Map<UsuarioDto>(u);
         }
+
+        // Alias para no romper llamadas existentes
+        public Task<UsuarioDto?> ObtenerPorIdAsync(int id)
+            => GetByIdAsync(id, default);
+
+        // ============================================
 
         public async Task<(IReadOnlyList<UsuarioDto> Items, int Total)> BuscarAsync(UsuarioQueryParams q)
         {

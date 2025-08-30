@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using BioAlga.Backend.Services.Interfaces;
@@ -9,6 +7,7 @@ namespace BioAlga.Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Produces("application/json")]
     // [Authorize]
     public class DevolucionesController : ControllerBase
     {
@@ -19,31 +18,72 @@ namespace BioAlga.Backend.Controllers
             _service = service;
         }
 
+        // ===============================
         // POST: api/devoluciones
+        // Crea una devolución (sin obligar número de venta)
+        // ===============================
         [HttpPost]
-        public async Task<ActionResult<int>> Crear([FromBody] DevolucionCreateRequest req)
+        // [AllowAnonymous] // <- descomenta en desarrollo si aún no tienes auth/token
+        public async Task<ActionResult<DevolucionDto>> Crear(
+            [FromBody] DevolucionCreateRequest req,
+            CancellationToken ct)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             try
             {
                 var idUsuario = GetUserId();
-                var id = await _service.RegistrarDevolucionAsync(idUsuario, req);
-                return Created($"/api/devoluciones/{id}", id);
+                var dto = await _service.CrearAsync(idUsuario, req, ct);
+
+                // IMPORTANTE: devolver JSON con 200 para evitar fallos de parseo en Angular
+                return Ok(dto);
             }
             catch (Exception ex)
             {
-                return Problem(title: "No se pudo registrar la devolución",
-                               detail: ex.Message,
-                               statusCode: 400);
+                return Problem(
+                    title: "No se pudo registrar la devolución",
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status400BadRequest
+                );
             }
         }
 
+        // ===============================
+        // GET: api/devoluciones/{id}
+        // Obtiene una devolución con detalles
+        // ===============================
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<DevolucionDto>> Obtener(int id, CancellationToken ct)
+        {
+            var dto = await _service.ObtenerAsync(id, ct);
+            if (dto is null) return NotFound(new { message = "Devolución no encontrada." });
+            return Ok(dto);
+        }
+
+        // ===============================
+        // GET: api/devoluciones
+        // Listado con filtros/paginación
+        // ===============================
+        [HttpGet]
+        public async Task<ActionResult<PagedResponse<DevolucionDto>>> Buscar(
+            [FromQuery] DevolucionQueryParams q,
+            CancellationToken ct)
+        {
+            var result = await _service.BuscarAsync(q, ct);
+            return Ok(result);
+        }
+
+        // ===============================
+        // Helpers
+        // ===============================
         private int GetUserId()
         {
-            var claim = User?.FindFirst("id_usuario")?.Value
-                        ?? User?.FindFirst("sub")?.Value
-                        ?? "1";
+            // Ajusta si tu esquema de claims es distinto
+            var claim =
+                User?.FindFirst("id_usuario")?.Value ??
+                User?.FindFirst("sub")?.Value ??
+                "1"; // fallback para pruebas locales
+
             return int.TryParse(claim, out var id) ? id : 1;
         }
     }
