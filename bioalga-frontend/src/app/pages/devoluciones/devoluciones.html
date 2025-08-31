@@ -136,7 +136,6 @@
           <div class="ms-auto d-flex gap-2">
             <input #txt type="text" class="form-control form-control-sm" placeholder="Buscar..." [value]="filtroTexto()"
                    (input)="filtroTexto.set(txt.value)" />
-
             <button class="btn btn-sm btn-outline-primary" (click)="page.set(1); cargarLista()">
               <i class="bi bi-search"></i>
             </button>
@@ -158,9 +157,9 @@
             <tbody>
               <tr *ngFor="let d of lista()">
                 <td>#{{ d.idDevolucion }}</td>
-                <td>{{ d.fecha | date:'short' }}</td>
+                <td>{{ d.fechaDevolucion | date:'short' }}</td>
                 <td class="text-truncate" style="max-width: 280px">{{ d.motivo }}</td>
-                <td class="text-muted">{{ d.referencia || '-' }}</td>
+                <td class="text-muted">{{ d.referenciaVenta || '-' }}</td>
                 <td class="text-end">{{ (d.totalDevuelto || 0) | number:'1.2-2' }}</td>
                 <td class="text-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="verDetalle(d)">

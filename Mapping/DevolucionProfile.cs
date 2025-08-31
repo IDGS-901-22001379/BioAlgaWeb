@@ -9,25 +9,26 @@ namespace BioAlga.Backend.Mapping
         public DevolucionProfile()
         {
             // ===== Entity -> DTO =====
+            // Ejemplo de Profile
+            CreateMap<Devolucion, DevolucionDto>()
+                .ForMember(d => d.FechaDevolucion, m => m.MapFrom(s => s.FechaDevolucion))
+                .ForMember(d => d.ReferenciaVenta, m => m.MapFrom(s => s.ReferenciaVenta));
+
             CreateMap<DetalleDevolucion, DevolucionDetalleDto>();
 
-            CreateMap<Devolucion, DevolucionDto>()
-                .ForMember(d => d.NumeroLineas, o => o.MapFrom(s => s.Detalles.Count))
-                .ForMember(d => d.Detalles, o => o.MapFrom(s => s.Detalles));
-
-            // ===== CreateRequest -> Entity =====
-            CreateMap<DevolucionLineaCreate, DetalleDevolucion>()
-                .ForMember(d => d.IdDetalle, o => o.Ignore())
-                .ForMember(d => d.ProductoNombre, o => o.Ignore()) // se llena en Service con snapshot del producto
-                .ForMember(d => d.IdDevolucion, o => o.Ignore());  // lo asigna EF
-
             CreateMap<DevolucionCreateRequest, Devolucion>()
-                .ForMember(d => d.IdDevolucion, o => o.Ignore())
-                .ForMember(d => d.FechaDevolucion, o => o.Ignore())  // se deja default SQL/UTC
-                .ForMember(d => d.IdUsuario, o => o.Ignore())        // se toma del contexto/autenticación
-                .ForMember(d => d.UsuarioNombre, o => o.Ignore())    // lo arma el Service con nombre del usuario
-                .ForMember(d => d.TotalDevuelto, o => o.Ignore())    // suma de líneas en Service
-                .ForMember(d => d.Detalles, o => o.MapFrom(s => s.Lineas));
+                .ForMember(d => d.IdDevolucion, m => m.Ignore())
+                .ForMember(d => d.FechaDevolucion, m => m.Ignore()) // la seteamos en el service
+                .ForMember(d => d.IdUsuario, m => m.Ignore())
+                .ForMember(d => d.UsuarioNombre, m => m.Ignore())
+                .ForMember(d => d.TotalDevuelto, m => m.Ignore())
+                .ForMember(d => d.ReferenciaVenta, m => m.MapFrom(s => s.ReferenciaVenta))
+                .ForMember(d => d.Detalles, m => m.MapFrom(s => s.Lineas));
+
+            CreateMap<DevolucionLineaCreate, DetalleDevolucion>()
+                .ForMember(d => d.IdDetalle, m => m.Ignore())
+                .ForMember(d => d.ProductoNombre, m => m.Ignore()); // lo llenamos en el service
+
         }
     }
 }

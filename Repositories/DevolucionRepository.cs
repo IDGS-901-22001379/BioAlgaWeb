@@ -66,14 +66,42 @@ namespace BioAlga.Backend.Repositories
                 qry = qry.Where(d => d.FechaDevolucion <= hasta);
             }
 
+            // ⚠️ Corregido: filtro por producto
             if (qp.IdProducto.HasValue)
-                qry = qry.Where(d => d.Detalles.Any(x => x.IdProducto == qp.IdProducto.Value));
+            {
+                // Ejecutamos la query base primero
+                var lista = await qry.ToListAsync(ct);
+
+                // Luego filtramos en memoria (para evitar el error de primitive collection)
+                lista = lista
+                    .Where(d => d.Detalles.Any(x => x.IdProducto == qp.IdProducto.Value))
+                    .ToList();
+
+                // Reaplicamos orden y paginación en memoria
+                var sort = (qp.SortBy ?? "fecha_desc").Trim().ToLowerInvariant();
+
+                lista = sort switch
+                {
+                    "fecha_asc"  => lista.OrderBy(d => d.FechaDevolucion).ThenBy(d => d.IdDevolucion).ToList(),
+                    "fecha_desc" => lista.OrderByDescending(d => d.FechaDevolucion).ThenByDescending(d => d.IdDevolucion).ToList(),
+                    "total_asc"  => lista.OrderBy(d => d.TotalDevuelto).ThenBy(d => d.IdDevolucion).ToList(),
+                    "total_desc" => lista.OrderByDescending(d => d.TotalDevuelto).ThenByDescending(d => d.IdDevolucion).ToList(),
+                    _            => lista.OrderByDescending(d => d.FechaDevolucion).ThenByDescending(d => d.IdDevolucion).ToList()
+                };
+
+                var page = qp.Page <= 0 ? 1 : qp.Page;
+                var size = qp.PageSize <= 0 ? 10 : qp.PageSize;
+
+                var total = lista.Count;
+                var items = lista.Skip((page - 1) * size).Take(size).ToList();
+
+                return (items, total);
+            }
 
             // ---------- Orden ----------
-            // qp.SortBy admite: "fecha_desc" (default), "fecha_asc", "total_desc", "total_asc"
-            var sort = (qp.SortBy ?? "fecha_desc").Trim().ToLowerInvariant();
+            var sortDefault = (qp.SortBy ?? "fecha_desc").Trim().ToLowerInvariant();
 
-            qry = sort switch
+            qry = sortDefault switch
             {
                 "fecha_asc"  => qry.OrderBy(d => d.FechaDevolucion).ThenBy(d => d.IdDevolucion),
                 "fecha_desc" => qry.OrderByDescending(d => d.FechaDevolucion).ThenByDescending(d => d.IdDevolucion),
@@ -85,16 +113,16 @@ namespace BioAlga.Backend.Repositories
             };
 
             // ---------- Paginación ----------
-            var page = qp.Page <= 0 ? 1 : qp.Page;
-            var size = qp.PageSize <= 0 ? 10 : qp.PageSize;
+            var pageDb = qp.Page <= 0 ? 1 : qp.Page;
+            var sizeDb = qp.PageSize <= 0 ? 10 : qp.PageSize;
 
-            var total = await qry.CountAsync(ct);
-            var items = await qry
-                .Skip((page - 1) * size)
-                .Take(size)
+            var totalDb = await qry.CountAsync(ct);
+            var itemsDb = await qry
+                .Skip((pageDb - 1) * sizeDb)
+                .Take(sizeDb)
                 .ToListAsync(ct);
 
-            return (items, total);
+            return (itemsDb, totalDb);
         }
 
         public Task GuardarCambiosAsync(CancellationToken ct = default)

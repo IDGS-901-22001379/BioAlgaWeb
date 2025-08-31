@@ -12,10 +12,12 @@ namespace BioAlga.Backend.Controllers
     public class DevolucionesController : ControllerBase
     {
         private readonly IDevolucionService _service;
+        private readonly IWebHostEnvironment _env;
 
-        public DevolucionesController(IDevolucionService service)
+        public DevolucionesController(IDevolucionService service, IWebHostEnvironment env)
         {
             _service = service;
+            _env = env;
         }
 
         // ===============================
@@ -28,21 +30,25 @@ namespace BioAlga.Backend.Controllers
             [FromBody] DevolucionCreateRequest req,
             CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (!ModelState.IsValid) 
+                return ValidationProblem(ModelState);
 
             try
             {
                 var idUsuario = GetUserId();
                 var dto = await _service.CrearAsync(idUsuario, req, ct);
 
-                // IMPORTANTE: devolver JSON con 200 para evitar fallos de parseo en Angular
+                // Devolver siempre 200 con JSON para Angular
                 return Ok(dto);
             }
             catch (Exception ex)
             {
+                // Mostrar detalle completo SOLO en desarrollo
+                var detalle = _env.IsDevelopment() ? ex.ToString() : ex.Message;
+
                 return Problem(
                     title: "No se pudo registrar la devolución",
-                    detail: ex.Message,
+                    detail: detalle,
                     statusCode: StatusCodes.Status400BadRequest
                 );
             }
@@ -56,7 +62,9 @@ namespace BioAlga.Backend.Controllers
         public async Task<ActionResult<DevolucionDto>> Obtener(int id, CancellationToken ct)
         {
             var dto = await _service.ObtenerAsync(id, ct);
-            if (dto is null) return NotFound(new { message = "Devolución no encontrada." });
+            if (dto is null) 
+                return NotFound(new { message = "Devolución no encontrada." });
+
             return Ok(dto);
         }
 

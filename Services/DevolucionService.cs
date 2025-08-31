@@ -1,3 +1,4 @@
+// src/BioAlga.Backend/Services/DevolucionService.cs
 using AutoMapper;
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos;
@@ -35,7 +36,7 @@ namespace BioAlga.Backend.Services
 
         public async Task<DevolucionDto> CrearAsync(int idUsuario, DevolucionCreateRequest req, CancellationToken ct = default)
         {
-            // ===== Validaciones básicas =====
+            // ===== Validaciones =====
             if (req is null) throw new ArgumentNullException(nameof(req));
             if (string.IsNullOrWhiteSpace(req.Motivo))
                 throw new ArgumentException("El motivo de la devolución es requerido.", nameof(req.Motivo));
@@ -49,48 +50,60 @@ namespace BioAlga.Backend.Services
                 if (l.ImporteLineaTotal < 0) throw new ArgumentException("El importe total de la línea no puede ser negativo.");
             }
 
-            // ===== Usuario (para Id y snapshot de nombre) =====
+            // ===== Usuario =====
             var usuario = await _usuarioRepo.GetByIdAsync(idUsuario);
             if (usuario is null)
                 throw new InvalidOperationException("Usuario no válido para registrar la devolución.");
 
-            var usuarioNombre = usuario.Nombre_Usuario ?? "Desconocido";
+            var usuarioNombre = string.IsNullOrWhiteSpace(usuario.Nombre_Usuario)
+                ? "Desconocido"
+                : usuario.Nombre_Usuario;
 
             // ===== Productos: validamos existencia y tomamos nombre para snapshot =====
             var idsProd = req.Lineas.Select(x => x.IdProducto).Distinct().ToList();
 
-            var productos = await (
-                from p in _db.Productos
-                join id in idsProd on p.IdProducto equals id
-                select new { p.IdProducto, p.Nombre }
-            ).ToListAsync(ct);
+            // 1) Traer de BD lo mínimo necesario (traducible a SQL)
+            var productosAll = await _db.Productos
+                .AsNoTracking()
+                .Select(p => new { p.IdProducto, p.Nombre })
+                .ToListAsync(ct);
+
+            // 2) Filtrar en memoria (evita error de EF con colecciones primitivas)
+            var productos = productosAll
+                .Where(p => idsProd.Contains(p.IdProducto))
+                .ToList();
 
             if (productos.Count != idsProd.Count)
                 throw new InvalidOperationException("Uno o más productos de la devolución no existen.");
 
             var nombrePorProducto = productos.ToDictionary(p => p.IdProducto, p => p.Nombre);
 
-            // ===== Mapear a entidades =====
+            // ===== Mapear a entidad =====
             var entity = _mapper.Map<Devolucion>(req);
+
             entity.IdUsuario = idUsuario;
             entity.UsuarioNombre = usuarioNombre;
+            entity.FechaDevolucion = DateTime.UtcNow;
+            entity.ReferenciaVenta = req.ReferenciaVenta;
+            entity.Notas = req.Notas;
+            entity.RegresaInventario = req.RegresaInventario;
 
-            // Llenar snapshots de productos en cada detalle
+            // Snapshots de producto en detalles
             foreach (var d in entity.Detalles)
                 d.ProductoNombre = nombrePorProducto[d.IdProducto];
 
-            // Calcular total devuelto
+            // Total devuelto
             entity.TotalDevuelto = entity.Detalles.Sum(x => x.ImporteLineaTotal);
             if (entity.TotalDevuelto < 0)
                 throw new InvalidOperationException("El total devuelto no puede ser negativo.");
 
-            // ===== Persistencia (transacción por seguridad) =====
+            // ===== Persistencia (transacción) =====
             using var trx = await _db.Database.BeginTransactionAsync(ct);
 
             await _repo.CrearAsync(entity, ct);
-            await _repo.GuardarCambiosAsync(ct);
+            await _repo.GuardarCambiosAsync(ct); // genera IdDevolucion
 
-            // ===== Inventario =====
+            // ===== Inventario (si reingresa) =====
             if (entity.RegresaInventario)
             {
                 foreach (var det in entity.Detalles)

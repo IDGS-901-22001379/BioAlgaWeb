@@ -21,8 +21,24 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("MySql")
     ?? throw new InvalidOperationException("Falta ConnectionStrings:MySql en appsettings.json");
 
+// <<<<<< BLOQUE ACTUALIZADO: habilita logs detallados SOLO en desarrollo >>>>>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+{
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+
+    if (builder.Environment.IsDevelopment())
+    {
+        // Mostrar parámetros y errores detallados de EF Core (útil para ubicar la consulta que falla)
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
+});
+// <<<<<< FIN BLOQUE ACTUALIZADO >>>>>
+
+// (opcional pero útil) Proveedores de logging para ver los mensajes en consola/debug
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 // ===============================
 // Controllers / JSON
@@ -92,8 +108,8 @@ builder.Services.AddScoped<IVentaRepository, VentaRepository>();
 builder.Services.AddScoped<IVentaService, VentaService>();
 
 // DEVOLUCIONES (NUEVO)
-builder.Services.AddScoped<IDevolucionRepository, DevolucionRepository>(); // <—
-builder.Services.AddScoped<IDevolucionService, DevolucionService>();       // <—
+builder.Services.AddScoped<IDevolucionRepository, DevolucionRepository>();
+builder.Services.AddScoped<IDevolucionService, DevolucionService>();
 
 builder.Services.AddScoped<ICajaService, CajaService>(); // si ya lo tienes
 

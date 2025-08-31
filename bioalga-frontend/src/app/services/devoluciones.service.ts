@@ -1,4 +1,3 @@
-// src/app/services/devoluciones.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import {
@@ -12,21 +11,17 @@ import {
 export class DevolucionesService {
   private http = inject(HttpClient);
 
-  // Igual que en ClientesService: usa URL absoluta a tu API
+  // Si usas proxy, pon '/api/devoluciones'
   private baseUrl = 'http://localhost:5241/api/devoluciones';
-  // Si usas proxy Angular, podrías usar: private baseUrl = '/api/devoluciones';
 
-  /** Crear una devolución */
   create(body: DevolucionCreateRequest) {
     return this.http.post<DevolucionDto>(this.baseUrl, body);
   }
 
-  /** Obtener devolución por id */
   getById(id: number) {
     return this.http.get<DevolucionDto>(`${this.baseUrl}/${id}`);
   }
 
-  /** Buscar/listar devoluciones con filtros, paginación y orden */
   buscar(qp: DevolucionQueryParams) {
     let params = new HttpParams();
     if (qp.q)        params = params.set('q', qp.q);

@@ -4,10 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 
-// Servicios
 import { DevolucionesService } from '../../services/devoluciones.service';
-
-// Modelos
 import {
   DevolucionCreateRequest,
   DevolucionLineaCreate,
@@ -101,7 +98,7 @@ export class DevolucionesPageComponent implements OnInit {
 
     const body: DevolucionCreateRequest = {
       motivo: this.form.value.motivo!.trim(),
-      referencia: this.form.value.referencia || null,
+      referenciaVenta: this.form.value.referencia || null,
       notas: this.form.value.notas || null,
       regresaInventario: !!this.form.value.reingresaInventario,
       lineas: this.devLineas().map(l => ({
@@ -129,8 +126,8 @@ export class DevolucionesPageComponent implements OnInit {
       q: this.filtroTexto() || undefined,
       page: this.page(),
       pageSize: this.pageSize(),
-      sortBy: 'fecha',
-      sortDir: 'desc'
+      // Usa los códigos que entiende el repo
+      sortBy: 'fecha_desc'
     };
 
     this.cargandoLista.set(true);
@@ -155,9 +152,9 @@ export class DevolucionesPageComponent implements OnInit {
     const html = `
       <div class="text-start">
         <div><b>Folio:</b> #${d.idDevolucion}</div>
-        <div><b>Fecha:</b> ${new Date(d.fecha!).toLocaleString()}</div>
+        <div><b>Fecha:</b> ${new Date(d.fechaDevolucion).toLocaleString()}</div>
         <div><b>Motivo:</b> ${d.motivo}</div>
-        <div><b>Referencia:</b> ${d.referencia || '-'}</div>
+        <div><b>Referencia:</b> ${d.referenciaVenta || '-'}</div>
         <div><b>Total devuelto:</b> $${(d.totalDevuelto ?? 0).toFixed(2)}</div>
       </div>`;
     Swal.fire({ title: 'Detalle de devolución', html, icon: 'info' });
