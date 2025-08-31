@@ -1,6 +1,6 @@
 -- ======================================================
 -- BASE DE DATOS: bioalga  (POS Tecnología / IoT)
--- VERSION: 2.2
+-- VERSION: 2.1
 -- FECHA: 2025-08-20
 -- NOTA: Ajuste en CLIENTES: apellido_paterno y apellido_materno.
 -- ======================================================
@@ -414,4 +414,19 @@ END$$
 DELIMITER ;
 
 
+ALTER TABLE devoluciones
+  ADD COLUMN venta_id INT NULL,
+  ADD INDEX idx_devol_venta (venta_id),
+  ADD CONSTRAINT fk_devol_venta
+    FOREIGN KEY (venta_id) REFERENCES ventas(id_venta);
+    
+    ALTER TABLE detalle_devolucion
+  ADD COLUMN id_detalle_venta INT NULL,
+  ADD INDEX idx_dd_detventa (id_detalle_venta),
+  ADD CONSTRAINT fk_dd_detventa
+    FOREIGN KEY (id_detalle_venta) REFERENCES detalle_venta(id_detalle);
+
+
 SET FOREIGN_KEY_CHECKS = 1;
+
+

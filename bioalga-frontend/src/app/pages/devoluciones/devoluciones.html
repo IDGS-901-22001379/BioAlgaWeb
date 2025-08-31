@@ -1,22 +1,18 @@
 <div class="container-fluid mt-3 devoluciones-container">
 
-  <!-- ===================== LADO IZQUIERDO: BÚSQUEDA + RESULTADOS ===================== -->
   <div class="row">
+    <!-- ===================== LADO IZQUIERDO: BÚSQUEDA + RESULTADOS ===================== -->
     <div class="col-lg-5 mb-3">
-
-      <!-- BUSCADOR -->
       <div class="card shadow-sm">
         <div class="card-header bg-light">
           <h5 class="mb-0">Buscar productos</h5>
         </div>
-        <div class="card-body">
+
+        <div class="card-body position-relative">
           <form [formGroup]="formBuscar" (ngSubmit)="forzarBusqueda()">
             <div class="input-group">
-              <input type="text"
-                     class="form-control"
-                     placeholder="Buscar producto (nombre o SKU)"
-                     formControlName="q"
-                     (keydown)="onBuscadorKey($event)">
+              <input type="text" class="form-control" placeholder="Buscar producto (nombre o SKU)" formControlName="q"
+                (keydown)="onBuscadorKey($event)" (focus)="showSugerencias.set(true)">
               <button class="btn btn-outline-secondary" type="submit">
                 <i class="bi bi-search"></i>
               </button>
@@ -24,20 +20,22 @@
           </form>
 
           <!-- SUGERENCIAS -->
-          <ul class="list-group mt-2"
-              *ngIf="showSugerencias() && sugerencias().length">
+          <ul class="list-group mt-2" *ngIf="showSugerencias() && sugerencias().length">
             <li class="list-group-item d-flex justify-content-between align-items-center"
-                *ngFor="let r of sugerencias(); let i = index"
-                [class.active]="selectedIndex() === i"
-                id="row-res-{{i}}"
-                (click)="elegirProducto(r)">
+              *ngFor="let r of sugerencias(); let i = index" [class.active]="selectedIndex() === i" id="row-res-{{i}}"
+              (mousedown)="elegirProducto(r)">
               <div>
-                <b>{{ r.nombre }}</b><br>
+                <b>{{ ($any(r).nombre ?? '') }}</b><br>
 
               </div>
               <span class="badge bg-info">
-                ${{ r.precio ?? 0 | number:'1.2-2' }}
+                ${{ ($any(r).precio ?? 0) | number:'1.2-2' }}
               </span>
+
+            </li>
+
+            <li class="list-group-item text-center text-muted" *ngIf="!sugerencias().length">
+              Sin resultados
             </li>
           </ul>
         </div>
@@ -47,42 +45,57 @@
     <!-- ===================== LADO DERECHO: FORMULARIO DEVOLUCIÓN ===================== -->
     <div class="col-lg-7 mb-3">
       <div class="card shadow-sm">
-        <div class="card-header bg-light">
+        <div class="card-header bg-light d-flex align-items-center justify-content-between">
           <h5 class="mb-0">Devolución</h5>
+          <button class="btn btn-outline-primary btn-sm" type="button" (click)="abrirListado()">
+            <i class="bi bi-list-ul"></i> Ver todas las devoluciones
+          </button>
         </div>
+
         <div class="card-body">
           <form [formGroup]="formDev">
-            <div class="row mb-2">
-              <div class="col-md-6">
-                <label class="form-label">Usuario</label>
-                <input type="text" class="form-control" formControlName="usuarioNombre" placeholder="Usuario que registra">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label">ID Venta (opcional)</label>
+                <input type="number" class="form-control" formControlName="ventaId" placeholder="Ej. 1024">
               </div>
-              <div class="col-md-6">
+
+              <div class="col-md-4">
+                <label class="form-label">Usuario</label>
+                <input type="text" class="form-control" formControlName="usuarioNombre"
+                  placeholder="Usuario que registra">
+              </div>
+
+              <div class="col-md-4">
                 <label class="form-label">Motivo</label>
                 <input type="text" class="form-control" formControlName="motivo" placeholder="Motivo de la devolución">
               </div>
-            </div>
-            <div class="form-check mb-3">
-              <input type="checkbox" class="form-check-input" formControlName="regresaInventario" id="chkInv">
-              <label class="form-check-label" for="chkInv">Regresa al inventario</label>
+
+              <div class="col-12">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" formControlName="regresaInventario" id="chkInv">
+                  <label class="form-check-label" for="chkInv">Regresa al inventario</label>
+                </div>
+              </div>
             </div>
           </form>
 
           <!-- TABLA DE LÍNEAS -->
-          <div class="table-responsive">
+          <div class="table-responsive mt-3">
             <table class="table table-bordered table-sm align-middle">
               <thead class="table-light">
                 <tr>
                   <th>Producto</th>
-                  <th style="width: 120px;">Cantidad</th>
-                  <th style="width: 150px;">Precio Unitario</th>
-                  <th>Importe</th>
+                  <th style="width: 140px;">Cantidad</th>
+                  <th style="width: 160px;">Precio Unitario</th>
+                  <th class="text-end" style="width: 160px;">Importe</th>
                   <th style="width: 80px;"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let l of lineas(); let i = index">
-                  <td>{{ l.nombre }}</td>
+                  <td>{{ l.nombre || l.productoNombre }}</td>
+
                   <td>
                     <div class="input-group input-group-sm">
                       <button class="btn btn-outline-secondary" type="button" (click)="cambiarCantidad(i,-1)">-</button>
@@ -90,20 +103,24 @@
                       <button class="btn btn-outline-secondary" type="button" (click)="cambiarCantidad(i,+1)">+</button>
                     </div>
                   </td>
+
                   <td>
-                    <input type="number"
-                           class="form-control form-control-sm"
-                           [value]="l.precioUnitario ?? 0"
-                           [readonly]="!!formDev.value.ventaId"
-                           (change)="editarPrecio(i, +($any($event.target).value || 0))">
+                    <input type="number" class="form-control form-control-sm" [value]="l.precioUnitario ?? 0"
+                      [readonly]="!!formDev.value.ventaId"
+                      (change)="editarPrecio(i, +($any($event.target).value || 0))">
                   </td>
-                  <td>${{ (l.precioUnitario ?? 0) * l.cantidad | number:'1.2-2' }}</td>
-                  <td>
+
+                  <td class="text-end">
+                    ${{ (((l.precioUnitario ?? 0) * l.cantidad)) | number:'1.2-2' }}
+                  </td>
+
+                  <td class="text-center">
                     <button class="btn btn-sm btn-danger" (click)="eliminarLinea(i)">
                       <i class="bi bi-trash"></i>
                     </button>
                   </td>
                 </tr>
+
                 <tr *ngIf="!lineas().length">
                   <td colspan="5" class="text-center text-muted">No hay productos en la devolución</td>
                 </tr>
@@ -115,15 +132,18 @@
           <div class="mt-3">
             <div class="d-flex justify-content-between">
               <span><b>Total Devuelto:</b></span>
-              <span class="fs-5 text-danger">${{ total() | number:'1.2-2' }}</span>
+              <span class="fs-5 text-danger">
+                ${{ total() | number:'1.2-2' }}
+              </span>
             </div>
           </div>
 
-          <!-- BOTÓN REGISTRAR -->
-          <div class="mt-3 text-end">
-            <button class="btn btn-primary"
-                    (click)="registrarDevolucion()"
-                    [disabled]="!lineas().length || cargando()">
+          <!-- ACCIONES -->
+          <div class="mt-3 d-flex justify-content-between">
+            <button class="btn btn-outline-secondary" type="button" (click)="vaciar()" [disabled]="!lineas().length">
+              Vaciar
+            </button>
+            <button class="btn btn-primary" (click)="registrarDevolucion()" [disabled]="!lineas().length || cargando()">
               <i class="bi bi-arrow-counterclockwise"></i> Registrar devolución
             </button>
           </div>
@@ -132,3 +152,158 @@
     </div>
   </div>
 </div>
+
+<!-- ==========================================================
+     MODAL: LISTADO DE DEVOLUCIONES
+=========================================================== -->
+<div class="modal fade show" tabindex="-1" [ngClass]="{ 'd-block': showListadoModal() }" *ngIf="showListadoModal()">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Devoluciones</h5>
+        <button type="button" class="btn-close" aria-label="Close" (click)="cerrarListado()"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Filtros -->
+        <div class="row g-2 mb-3">
+          <div class="col-sm-4">
+            <label class="form-label">Desde</label>
+            <input type="date" class="form-control" [value]="filtroDesde()"
+              (change)="filtroDesde.set($any($event.target).value)">
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label">Hasta</label>
+            <input type="date" class="form-control" [value]="filtroHasta()"
+              (change)="filtroHasta.set($any($event.target).value)">
+          </div>
+          <div class="col-sm-4 d-flex align-items-end">
+            <button class="btn btn-primary me-2" (click)="cargarListado()" [disabled]="cargandoListado()">
+              <i class="bi bi-search"></i> Buscar
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="table-responsive">
+          <table class="table table-hover table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 90px;">#</th>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Motivo</th>
+                <th>Regresa Inv.</th>
+                <th class="text-end">Total</th>
+                <th style="width: 120px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let d of listado(); let i = index">
+                <td>{{ d.idDevolucion }}</td>
+                <td>{{ d.fechaDevolucion | date:'yyyy-MM-dd HH:mm' }}</td>
+                <td>{{ d.usuarioNombre }}</td>
+                <td class="text-truncate" style="max-width: 260px;">{{ d.motivo }}</td>
+                <td>
+                  <span class="badge" [class.bg-success]="d.regresaInventario"
+                    [class.bg-secondary]="!d.regresaInventario">
+                    {{ d.regresaInventario ? 'Sí' : 'No' }}
+                  </span>
+                </td>
+                <td class="text-end">${{ d.totalDevuelto | number:'1.2-2' }}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="verDetalle(d.idDevolucion)">
+                    Ver detalles
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="!listado().length && !cargandoListado()">
+                <td colspan="7" class="text-center text-muted">Sin resultados en el rango seleccionado</td>
+              </tr>
+              <tr *ngIf="cargandoListado()">
+                <td colspan="7" class="text-center">
+                  <div class="spinner-border spinner-border-sm"></div> Cargando...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarListado()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="showListadoModal()"></div>
+
+<!-- ==========================================================
+     MODAL: DETALLE DE UNA DEVOLUCIÓN
+=========================================================== -->
+<div class="modal fade show" tabindex="-1" [ngClass]="{ 'd-block': showDetalleModal() }" *ngIf="showDetalleModal()">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" *ngIf="detalleDevolucion(); else devLoadingTpl">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Detalle Devolución #{{ detalleDevolucion()?.idDevolucion }}
+        </h5>
+        <button type="button" class="btn-close" aria-label="Close" (click)="cerrarDetalle()"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row mb-2">
+          <div class="col-md-6">
+            <div><b>Fecha:</b> {{ detalleDevolucion()?.fechaDevolucion | date:'yyyy-MM-dd HH:mm' }}</div>
+            <div><b>Usuario:</b> {{ detalleDevolucion()?.usuarioNombre }}</div>
+          </div>
+          <div class="col-md-6">
+            <div><b>Regresa inventario:</b> {{ detalleDevolucion()?.regresaInventario ? 'Sí' : 'No' }}</div>
+            <div><b>Total devuelto:</b> ${{ detalleDevolucion()?.totalDevuelto | number:'1.2-2' }}</div>
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <b>Motivo:</b> {{ detalleDevolucion()?.motivo }}
+        </div>
+
+        <div class="table-responsive mt-2">
+          <table class="table table-bordered table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Producto</th>
+                <th style="width: 110px;">Cantidad</th>
+                <th style="width: 140px;">Importe línea</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let l of (detalleDevolucion()?.detalles || [])">
+                <td>{{ l.productoNombre }}</td>
+                <td>{{ l.cantidad }}</td>
+                <td>${{ l.importeLineaTotal | number:'1.2-2' }}</td>
+              </tr>
+              <tr *ngIf="!(detalleDevolucion()?.detalles || []).length">
+                <td colspan="3" class="text-center text-muted">Sin renglones</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+    </div>
+
+    <ng-template #devLoadingTpl>
+      <div class="modal-content">
+        <div class="modal-body text-center">
+          <div class="spinner-border"></div>
+          <div class="mt-2">Cargando...</div>
+        </div>
+      </div>
+    </ng-template>
+  </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="showDetalleModal()"></div>
