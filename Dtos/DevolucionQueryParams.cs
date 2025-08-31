@@ -1,20 +1,27 @@
+using System;
+
 namespace BioAlga.Backend.Dtos
 {
     public class DevolucionQueryParams
     {
-        public string? Q { get; set; }                   // busca en motivo, referencia, usuario_nombre
-        public int? IdProducto { get; set; }             // filtra por producto
-        public int? IdUsuario { get; set; }              // filtra por usuario que registró
-        public bool? RegresaInventario { get; set; }     // 1/0
+        /// <summary>
+        /// Fecha inicial para filtrar devoluciones.
+        /// </summary>
         public DateTime? Desde { get; set; }
+
+        /// <summary>
+        /// Fecha final para filtrar devoluciones.
+        /// </summary>
         public DateTime? Hasta { get; set; }
 
-        // Paginación simple:
-        public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
+        /// <summary>
+        /// Texto libre para búsqueda (motivo, referencia, usuario, etc.)
+        /// </summary>
+        public string? Q { get; set; }
 
-        // Orden:
-        // fecha_desc (default), fecha_asc, total_desc, total_asc
-        public string? SortBy { get; set; } = "fecha_desc";
+        /// <summary>
+        /// Si solo quieres devoluciones que regresan inventario.
+        /// </summary>
+        public bool? RegresaInventario { get; set; }
     }
 }

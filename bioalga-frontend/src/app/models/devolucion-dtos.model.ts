@@ -1,59 +1,83 @@
-// Línea de la devolución a crear
-export interface DevolucionLineaCreate {
-  idProducto: number;
-  cantidad: number;
-  /** Importe TOTAL de la línea (precio ya con IVA/lo que corresponda) */
-  importeLineaTotal: number;
-}
+// src/app/models/devolucion-dtos.model.ts
 
-// Request para crear devolución
-export interface DevolucionCreateRequest {
+// ============== READ / RESPONSE ==============
+export interface DevolucionDto {
+  idDevolucion: number;
+  fechaDevolucion: string;        // viene como ISO string desde .NET
+  idUsuario: number;
+  usuarioNombre: string;
   motivo: string;
   regresaInventario: boolean;
-  /** opcional, folio/ticket o texto libre */
+  totalDevuelto: number;
+  ventaId?: number | null;
   referenciaVenta?: string | null;
-  /** opcional */
+  notas?: string | null;
+  detalles: DevolucionDetalleDto[];
+}
+
+export interface DevolucionDetalleDto {
+  idDetalle: number;
+  idProducto: number;
+  productoNombre: string;
+  cantidad: number;
+  importeLineaTotal: number;
+  idDetalleVenta?: number | null;
+}
+
+// Versión compacta para listados (si la usas en tablas)
+export interface DevolucionListItemDto {
+  idDevolucion: number;
+  fechaDevolucion: string;
+  usuarioNombre: string;
+  motivo: string;
+  regresaInventario: boolean;
+  totalDevuelto: number;
+  ventaId?: number | null;
+  referenciaVenta?: string | null;
+}
+
+// ============== CREATE / REQUEST ==============
+export interface DevolucionCreateRequest {
+  ventaId?: number | null;
+  referenciaVenta?: string | null;
+  usuarioNombre: string;
+  motivo: string;
+  regresaInventario: boolean;
   notas?: string | null;
   lineas: DevolucionLineaCreate[];
 }
 
-// Detalle incluido en el DTO
-export interface DevolucionDetalleDto {
+export interface DevolucionLineaCreate {
   idProducto: number;
-  productoNombre?: string | null;
+  productoNombre: string;
   cantidad: number;
-  importeLineaTotal: number;
+  idDetalleVenta?: number | null; // si ligas a un renglón de venta
+  precioUnitario?: number | null; // obligatorio cuando no hay idDetalleVenta
 }
 
-// DTO principal (mismos nombres que backend)
-export interface DevolucionDto {
-  idDevolucion: number;
-  fechaDevolucion: string;
-  motivo: string;
-  referenciaVenta?: string | null;
-  notas?: string | null;
-  regresaInventario: boolean;
-  totalDevuelto: number;
-  usuarioNombre?: string | null;
-  detalles: DevolucionDetalleDto[];
-}
-
-// Listado (el repo usa sortBy compacto: fecha_desc|fecha_asc|total_desc|total_asc)
-export type DevolucionSortBy = 'fecha_desc' | 'fecha_asc' | 'total_desc' | 'total_asc';
-
+// ============== QUERY PARAMS (GET /api/devoluciones) ==============
 export interface DevolucionQueryParams {
+  desde?: string;               // ISO string (yyyy-MM-dd o completa)
+  hasta?: string;
   q?: string;
-  page?: number;
-  pageSize?: number;
-  sortBy?: DevolucionSortBy;
-  // sortDir ya NO se usa en el repo, pero lo dejamos opcional por compatibilidad
-  sortDir?: 'asc' | 'desc';
+  regresaInventario?: boolean;
 }
 
-// Respuesta paginada genérica
-export interface PagedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
+// ============== Helpers opcionales ==============
+export const defaultDevolucionCreate = (): DevolucionCreateRequest => ({
+  ventaId: null,
+  referenciaVenta: null,
+  usuarioNombre: '',
+  motivo: '',
+  regresaInventario: true,
+  notas: null,
+  lineas: []
+});
+
+export const nuevaLineaDevolucion = (): DevolucionLineaCreate => ({
+  idProducto: 0,
+  productoNombre: '',
+  cantidad: 1,
+  idDetalleVenta: null,
+  precioUnitario: null
+});

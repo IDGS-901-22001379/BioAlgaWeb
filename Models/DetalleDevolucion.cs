@@ -10,34 +10,31 @@ namespace BioAlga.Backend.Models
         [Column("id_detalle")]
         public int IdDetalle { get; set; }
 
-        [Required]
         [Column("id_devolucion")]
         public int IdDevolucion { get; set; }
 
-        [Required]
         [Column("id_producto")]
         public int IdProducto { get; set; }
 
-        // Snapshot del nombre del producto para reporting
-        [Required]
-        [MaxLength(150)]
         [Column("producto_nombre")]
+        [MaxLength(150)]
         public string ProductoNombre { get; set; } = string.Empty;
 
-        [Required]
         [Column("cantidad")]
         public int Cantidad { get; set; }
 
-        // Total por la línea (importe capturado a mano, ya con lo que tú decidas)
-        [Required]
-        [Column("importe_linea_total", TypeName = "decimal(12,2)")]
+        [Column("importe_linea_total")]
         public decimal ImporteLineaTotal { get; set; }
 
-        // ===== Navegación =====
-        [ForeignKey(nameof(IdDevolucion))]
+        // 🔗 Relación con devolución
         public Devolucion? Devolucion { get; set; }
 
-        [ForeignKey(nameof(IdProducto))]
+        // 🔗 Relación con producto
         public Producto? Producto { get; set; }
+
+        // 🔗 Relación opcional con detalle de venta
+        [Column("id_detalle_venta")]
+        public int? IdDetalleVenta { get; set; }
+        public DetalleVenta? DetalleVenta { get; set; }
     }
 }

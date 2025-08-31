@@ -1,10 +1,8 @@
 using System;
+using System.Collections.Generic;
 
 namespace BioAlga.Backend.Dtos
 {
-    /// <summary>
-    /// DTO para listar y ver detalle de una devolución.
-    /// </summary>
     public class DevolucionDto
     {
         public int IdDevolucion { get; set; }
@@ -16,15 +14,12 @@ namespace BioAlga.Backend.Dtos
         public string Motivo { get; set; } = string.Empty;
         public bool RegresaInventario { get; set; }
 
-        /// <summary>
-        /// Total devuelto (lo que se descuenta de ventas del día).
-        /// </summary>
         public decimal TotalDevuelto { get; set; }
 
+        public int? VentaId { get; set; }
         public string? ReferenciaVenta { get; set; }
         public string? Notas { get; set; }
 
-        public int NumeroLineas { get; set; }         // para listados rápidos
         public List<DevolucionDetalleDto> Detalles { get; set; } = new();
     }
 }

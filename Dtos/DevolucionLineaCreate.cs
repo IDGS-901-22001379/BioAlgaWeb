@@ -7,16 +7,20 @@ namespace BioAlga.Backend.Dtos
         [Required]
         public int IdProducto { get; set; }
 
-        /// <summary>
-        /// Cantidad devuelta (entero positivo)
-        /// </summary>
-        [Range(1, int.MaxValue)]
+        [Required, MaxLength(150)]
+        public string ProductoNombre { get; set; } = string.Empty;
+
+        [Range(1, int.MaxValue, ErrorMessage = "La cantidad debe ser mayor a cero.")]
         public int Cantidad { get; set; }
 
         /// <summary>
-        /// Importe total de la línea (capturado a mano) = precio pagado por esa cantidad.
+        /// Si está ligada a un detalle de venta.
         /// </summary>
-        [Range(typeof(decimal), "0.00", "9999999999.99")]
-        public decimal ImporteLineaTotal { get; set; }
+        public int? IdDetalleVenta { get; set; }
+
+        /// <summary>
+        /// Precio unitario (solo obligatorio si no hay IdDetalleVenta).
+        /// </summary>
+        public decimal? PrecioUnitario { get; set; }
     }
 }

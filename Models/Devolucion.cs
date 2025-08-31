@@ -11,36 +11,25 @@ namespace BioAlga.Backend.Models
         public int IdDevolucion { get; set; }
 
         [Column("fecha_devolucion")]
-        public DateTime FechaDevolucion { get; set; } = DateTime.UtcNow;
+        public DateTime FechaDevolucion { get; set; } = DateTime.Now;
 
-        // FK al usuario que registró la devolución (integridad)
-        [Required]
         [Column("id_usuario")]
         public int IdUsuario { get; set; }
 
-        // Snapshot del nombre del usuario en el momento de la devolución
-        [Required]
-        [MaxLength(120)]
         [Column("usuario_nombre")]
+        [MaxLength(120)]
         public string UsuarioNombre { get; set; } = string.Empty;
 
-        // Motivo requerido
-        [Required]
-        [MaxLength(300)]
         [Column("motivo")]
+        [MaxLength(300)]
         public string Motivo { get; set; } = string.Empty;
 
-        // 1 = regresa a inventario, 0 = no (dañado, etc.)
-        [Required]
         [Column("regresa_inventario")]
         public bool RegresaInventario { get; set; } = true;
 
-        // Total que se descuenta de "ventas del día"
-        [Required]
-        [Column("total_devuelto", TypeName = "decimal(12,2)")]
-        public decimal TotalDevuelto { get; set; }
+        [Column("total_devuelto")]
+        public decimal TotalDevuelto { get; set; } = 0;
 
-        // Opcional: si se conoce el número/ticket de la venta
         [Column("referencia_venta")]
         [MaxLength(50)]
         public string? ReferenciaVenta { get; set; }
@@ -48,10 +37,15 @@ namespace BioAlga.Backend.Models
         [Column("notas")]
         public string? Notas { get; set; }
 
-        // ===== Navegación =====
-        [ForeignKey(nameof(IdUsuario))]
+        // 🔗 Relación opcional con venta
+        [Column("venta_id")]
+        public int? VentaId { get; set; }
+        public Venta? Venta { get; set; }
+
+        // 🔗 Relación con Usuario
         public Usuario? Usuario { get; set; }
 
+        // 🔗 Relación detalle
         public ICollection<DetalleDevolucion> Detalles { get; set; } = new List<DetalleDevolucion>();
     }
 }

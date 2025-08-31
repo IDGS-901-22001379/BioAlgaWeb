@@ -7,5 +7,6 @@ namespace BioAlga.Backend.Dtos
         public string ProductoNombre { get; set; } = string.Empty;
         public int Cantidad { get; set; }
         public decimal ImporteLineaTotal { get; set; }
+        public int? IdDetalleVenta { get; set; }
     }
 }

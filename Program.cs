@@ -21,21 +21,18 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("MySql")
     ?? throw new InvalidOperationException("Falta ConnectionStrings:MySql en appsettings.json");
 
-// <<<<<< BLOQUE ACTUALIZADO: habilita logs detallados SOLO en desarrollo >>>>>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
     if (builder.Environment.IsDevelopment())
     {
-        // Mostrar parámetros y errores detallados de EF Core (útil para ubicar la consulta que falla)
         options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
     }
 });
-// <<<<<< FIN BLOQUE ACTUALIZADO >>>>>
 
-// (opcional pero útil) Proveedores de logging para ver los mensajes en consola/debug
+// Logging útil en Dev
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
@@ -50,7 +47,7 @@ builder.Services
         opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // enums como texto
-        // opt.JsonSerializerOptions.PropertyNamingPolicy = null;
+        // opt.JsonSerializerOptions.PropertyNamingPolicy = null; // si quieres PascalCase
     });
 
 // ===============================
@@ -68,7 +65,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ===============================
-// AutoMapper (carga todos los Profiles)
+// AutoMapper (carga TODOS los Profiles del ensamblado)
 // ===============================
 builder.Services.AddAutoMapper(typeof(ClienteMappingProfile).Assembly);
 
@@ -103,15 +100,14 @@ builder.Services.AddScoped<ICompraRepository, CompraRepository>();
 builder.Services.AddScoped<ICompraService, CompraService>();
 builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
 
-// ======== Ventas / Devoluciones / Caja ========
+// Ventas / Caja
 builder.Services.AddScoped<IVentaRepository, VentaRepository>();
 builder.Services.AddScoped<IVentaService, VentaService>();
+builder.Services.AddScoped<ICajaService, CajaService>();
 
-// DEVOLUCIONES (NUEVO)
-builder.Services.AddScoped<IDevolucionRepository, DevolucionRepository>();
+// ======== Devoluciones (nuevo wiring limpio) ========
+
 builder.Services.AddScoped<IDevolucionService, DevolucionService>();
-
-builder.Services.AddScoped<ICajaService, CajaService>(); // si ya lo tienes
 
 // ===============================
 // CORS (Angular)

@@ -1,159 +1,177 @@
-// src/BioAlga.Backend/Services/DevolucionService.cs
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
-using BioAlga.Backend.Repositories.Interfaces;
 using BioAlga.Backend.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+
+// Enums de ventas (estatus pagada, etc.)
+using BioAlga.Backend.Models.Enums;
+
+// Alias para evitar ambigüedad con los enums de InventarioMovimiento
+using OrigenMovInv = BioAlga.Backend.Models.OrigenMovimiento;
+using TipoMovInv   = BioAlga.Backend.Models.TipoMovimiento;
 
 namespace BioAlga.Backend.Services
 {
     public class DevolucionService : IDevolucionService
     {
-        private readonly IDevolucionRepository _repo;
-        private readonly IProductoRepository _productoRepo;
-        private readonly IInventarioRepository _inventarioRepo;
-        private readonly IUsuarioRepository _usuarioRepo;
-        private readonly IMapper _mapper;
         private readonly ApplicationDbContext _db;
+        private readonly IMapper _mapper;
 
-        public DevolucionService(
-            IDevolucionRepository repo,
-            IProductoRepository productoRepo,
-            IInventarioRepository inventarioRepo,
-            IUsuarioRepository usuarioRepo,
-            IMapper mapper,
-            ApplicationDbContext db)
+        public DevolucionService(ApplicationDbContext db, IMapper mapper)
         {
-            _repo = repo;
-            _productoRepo = productoRepo;
-            _inventarioRepo = inventarioRepo;
-            _usuarioRepo = usuarioRepo;
-            _mapper = mapper;
             _db = db;
+            _mapper = mapper;
         }
 
-        public async Task<DevolucionDto> CrearAsync(int idUsuario, DevolucionCreateRequest req, CancellationToken ct = default)
+        // =============================
+        // Crear devolución
+        // =============================
+        public async Task<DevolucionDto> RegistrarDevolucionAsync(int idUsuario, DevolucionCreateRequest req)
         {
-            // ===== Validaciones =====
-            if (req is null) throw new ArgumentNullException(nameof(req));
-            if (string.IsNullOrWhiteSpace(req.Motivo))
-                throw new ArgumentException("El motivo de la devolución es requerido.", nameof(req.Motivo));
-            if (req.Lineas is null || req.Lineas.Count == 0)
-                throw new ArgumentException("La devolución debe incluir al menos una línea.");
-
-            foreach (var l in req.Lineas)
+            // 1) Validar venta (si viene)
+            if (req.VentaId is not null)
             {
-                if (l.IdProducto <= 0) throw new ArgumentException("IdProducto inválido en una línea.");
-                if (l.Cantidad <= 0) throw new ArgumentException("La cantidad debe ser mayor que cero.");
-                if (l.ImporteLineaTotal < 0) throw new ArgumentException("El importe total de la línea no puede ser negativo.");
+                var ventaOk = await _db.Ventas
+                    .AnyAsync(v => v.IdVenta == req.VentaId && v.Estatus == EstatusVenta.Pagada);
+                if (!ventaOk)
+                    throw new ValidationException("La venta no existe o no está pagada.");
             }
 
-            // ===== Usuario =====
-            var usuario = await _usuarioRepo.GetByIdAsync(idUsuario);
-            if (usuario is null)
-                throw new InvalidOperationException("Usuario no válido para registrar la devolución.");
-
-            var usuarioNombre = string.IsNullOrWhiteSpace(usuario.Nombre_Usuario)
-                ? "Desconocido"
-                : usuario.Nombre_Usuario;
-
-            // ===== Productos: validamos existencia y tomamos nombre para snapshot =====
-            var idsProd = req.Lineas.Select(x => x.IdProducto).Distinct().ToList();
-
-            // 1) Traer de BD lo mínimo necesario (traducible a SQL)
-            var productosAll = await _db.Productos
-                .AsNoTracking()
-                .Select(p => new { p.IdProducto, p.Nombre })
-                .ToListAsync(ct);
-
-            // 2) Filtrar en memoria (evita error de EF con colecciones primitivas)
-            var productos = productosAll
-                .Where(p => idsProd.Contains(p.IdProducto))
+            // 2) Validar líneas (materializando colecciones primitivas)
+            var idsDetalleVenta = req.Lineas
+                .Where(l => l.IdDetalleVenta.HasValue)
+                .Select(l => l.IdDetalleVenta!.Value)
+                .Distinct()
                 .ToList();
 
-            if (productos.Count != idsProd.Count)
-                throw new InvalidOperationException("Uno o más productos de la devolución no existen.");
+            var renglonesVenta = idsDetalleVenta.Count == 0
+                ? new List<DetalleVenta>()
+                : await _db.DetalleVentas
+                    .Where(dv => idsDetalleVenta.Contains(dv.IdDetalle))
+                    .ToListAsync();
 
-            var nombrePorProducto = productos.ToDictionary(p => p.IdProducto, p => p.Nombre);
-
-            // ===== Mapear a entidad =====
-            var entity = _mapper.Map<Devolucion>(req);
-
-            entity.IdUsuario = idUsuario;
-            entity.UsuarioNombre = usuarioNombre;
-            entity.FechaDevolucion = DateTime.UtcNow;
-            entity.ReferenciaVenta = req.ReferenciaVenta;
-            entity.Notas = req.Notas;
-            entity.RegresaInventario = req.RegresaInventario;
-
-            // Snapshots de producto en detalles
-            foreach (var d in entity.Detalles)
-                d.ProductoNombre = nombrePorProducto[d.IdProducto];
-
-            // Total devuelto
-            entity.TotalDevuelto = entity.Detalles.Sum(x => x.ImporteLineaTotal);
-            if (entity.TotalDevuelto < 0)
-                throw new InvalidOperationException("El total devuelto no puede ser negativo.");
-
-            // ===== Persistencia (transacción) =====
-            using var trx = await _db.Database.BeginTransactionAsync(ct);
-
-            await _repo.CrearAsync(entity, ct);
-            await _repo.GuardarCambiosAsync(ct); // genera IdDevolucion
-
-            // ===== Inventario (si reingresa) =====
-            if (entity.RegresaInventario)
+            foreach (var linea in req.Lineas)
             {
-                foreach (var det in entity.Detalles)
+                if (linea.IdDetalleVenta is not null)
                 {
-                    var mov = new InventarioMovimiento
-                    {
-                        IdProducto = det.IdProducto,
-                        TipoMovimiento = "Entrada",
-                        Cantidad = det.Cantidad,
-                        Fecha = DateTime.UtcNow,
-                        OrigenTipo = "Devolucion",
-                        OrigenId = entity.IdDevolucion,
-                        IdUsuario = idUsuario,
-                        Referencia = $"DEV-{entity.IdDevolucion}"
-                    };
+                    var dv = renglonesVenta.FirstOrDefault(d => d.IdDetalle == linea.IdDetalleVenta)
+                        ?? throw new ValidationException("Detalle de venta no válido.");
 
-                    await _inventarioRepo.AddMovimientoAsync(mov, ct);
+                    if (linea.Cantidad <= 0 || linea.Cantidad > dv.Cantidad)
+                        throw new ValidationException("Cantidad a devolver inválida.");
                 }
-
-                await _inventarioRepo.GuardarCambiosAsync(ct);
+                else
+                {
+                    if (linea.PrecioUnitario is null)
+                        throw new ValidationException("Debe indicar precio si no se liga a un detalle de venta.");
+                }
             }
 
-            await trx.CommitAsync(ct);
+            // 3) Crear cabecera
+            var devolucion = _mapper.Map<Devolucion>(req);
+            devolucion.IdUsuario = idUsuario;
+            devolucion.FechaDevolucion = DateTime.Now;
 
-            // ===== Salida DTO =====
-            var guardada = await _repo.ObtenerPorIdAsync(entity.IdDevolucion, ct);
-            if (guardada is null)
-                throw new InvalidOperationException("No fue posible recuperar la devolución recién creada.");
+            _db.Devoluciones.Add(devolucion);
+            await _db.SaveChangesAsync();
 
-            return _mapper.Map<DevolucionDto>(guardada);
-        }
+            // 4) Detalle + inventario
+            decimal total = 0m;
 
-        public async Task<DevolucionDto?> ObtenerAsync(int idDevolucion, CancellationToken ct = default)
-        {
-            var dev = await _repo.ObtenerPorIdAsync(idDevolucion, ct);
-            return dev is null ? null : _mapper.Map<DevolucionDto>(dev);
-        }
-
-        public async Task<PagedResponse<DevolucionDto>> BuscarAsync(DevolucionQueryParams qp, CancellationToken ct = default)
-        {
-            var (items, total) = await _repo.BuscarAsync(qp, ct);
-            var list = _mapper.Map<List<DevolucionDto>>(items);
-
-            return new PagedResponse<DevolucionDto>
+            foreach (var linea in req.Lineas)
             {
-                Items = list,
-                Total = total,
-                Page = qp.Page <= 0 ? 1 : qp.Page,
-                PageSize = qp.PageSize <= 0 ? 10 : qp.PageSize
-            };
+                decimal precioUnit;
+
+                if (linea.IdDetalleVenta is not null)
+                {
+                    var dv = renglonesVenta.First(d => d.IdDetalle == linea.IdDetalleVenta);
+                    // Ajusta si tu IVA/Descuento van incluidos o no
+                    precioUnit = dv.PrecioUnitario - dv.DescuentoUnitario + dv.IvaUnitario;
+                }
+                else
+                {
+                    precioUnit = linea.PrecioUnitario!.Value;
+                }
+
+                var importe = Math.Round(precioUnit * linea.Cantidad, 2);
+
+                var detalle = _mapper.Map<DetalleDevolucion>(linea);
+                detalle.IdDevolucion = devolucion.IdDevolucion;
+                detalle.ImporteLineaTotal = importe;
+
+                _db.DetalleDevoluciones.Add(detalle);
+
+                total += importe;
+
+                if (req.RegresaInventario)
+                {
+                    _db.InventarioMovimientos.Add(new InventarioMovimiento
+                    {
+                        IdProducto    = linea.IdProducto,
+                        // La entidad guarda string → usamos nameof para consistencia
+                        TipoMovimiento = nameof(TipoMovInv.Entrada),
+                        Cantidad       = linea.Cantidad,
+                        OrigenTipo     = nameof(OrigenMovInv.Devolucion),
+                        OrigenId       = devolucion.IdDevolucion,
+                        IdUsuario      = idUsuario,
+                        Referencia     = $"DEV-{devolucion.IdDevolucion}"
+                    });
+                }
+            }
+
+            devolucion.TotalDevuelto = Math.Round(total, 2);
+            await _db.SaveChangesAsync();
+
+            // Reconsulta para mapear DTO con detalles
+            var dto = await _db.Devoluciones
+                .Where(d => d.IdDevolucion == devolucion.IdDevolucion)
+                .ProjectTo<DevolucionDto>(_mapper.ConfigurationProvider)
+                .FirstAsync();
+
+            return dto;
+        }
+
+        // =============================
+        // Obtener devolución por Id
+        // =============================
+        public async Task<DevolucionDto?> ObtenerPorIdAsync(int idDevolucion)
+        {
+            return await _db.Devoluciones
+                .Where(d => d.IdDevolucion == idDevolucion)
+                .ProjectTo<DevolucionDto>(_mapper.ConfigurationProvider)
+                .FirstOrDefaultAsync();
+        }
+
+        // =============================
+        // Listar devoluciones (con filtro)
+        // =============================
+        public async Task<List<DevolucionDto>> ListarAsync(DevolucionQueryParams filtro)
+        {
+            var query = _db.Devoluciones.AsQueryable();
+
+            if (filtro.Desde.HasValue)
+                query = query.Where(d => d.FechaDevolucion >= filtro.Desde.Value);
+
+            if (filtro.Hasta.HasValue)
+                query = query.Where(d => d.FechaDevolucion <= filtro.Hasta.Value);
+
+            if (!string.IsNullOrWhiteSpace(filtro.Q))
+                query = query.Where(d =>
+                    d.UsuarioNombre.Contains(filtro.Q) ||
+                    d.Motivo.Contains(filtro.Q) ||
+                    (d.ReferenciaVenta != null && d.ReferenciaVenta.Contains(filtro.Q)));
+
+            if (filtro.RegresaInventario.HasValue)
+                query = query.Where(d => d.RegresaInventario == filtro.RegresaInventario.Value);
+
+            return await query
+                .OrderByDescending(d => d.FechaDevolucion)
+                .ProjectTo<DevolucionDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
         }
     }
 }

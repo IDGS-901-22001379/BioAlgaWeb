@@ -1,3 +1,4 @@
+using System;
 using AutoMapper;
 using BioAlga.Backend.Dtos;
 using BioAlga.Backend.Models;
@@ -8,27 +9,36 @@ namespace BioAlga.Backend.Mapping
     {
         public DevolucionProfile()
         {
-            // ===== Entity -> DTO =====
-            // Ejemplo de Profile
+            // =============== ENTIDAD → DTO (lectura) ===============
             CreateMap<Devolucion, DevolucionDto>()
-                .ForMember(d => d.FechaDevolucion, m => m.MapFrom(s => s.FechaDevolucion))
-                .ForMember(d => d.ReferenciaVenta, m => m.MapFrom(s => s.ReferenciaVenta));
+                .ForMember(d => d.Detalles, cfg => cfg.MapFrom(s => s.Detalles));
 
             CreateMap<DetalleDevolucion, DevolucionDetalleDto>();
 
+            // =============== CREATE → ENTIDAD (escritura) ===============
+            // Cabecera desde la petición de creación
             CreateMap<DevolucionCreateRequest, Devolucion>()
-                .ForMember(d => d.IdDevolucion, m => m.Ignore())
-                .ForMember(d => d.FechaDevolucion, m => m.Ignore()) // la seteamos en el service
-                .ForMember(d => d.IdUsuario, m => m.Ignore())
-                .ForMember(d => d.UsuarioNombre, m => m.Ignore())
-                .ForMember(d => d.TotalDevuelto, m => m.Ignore())
-                .ForMember(d => d.ReferenciaVenta, m => m.MapFrom(s => s.ReferenciaVenta))
-                .ForMember(d => d.Detalles, m => m.MapFrom(s => s.Lineas));
+                // Fecha la deja EF o el servicio; por seguridad la inicializamos aquí.
+                .ForMember(d => d.FechaDevolucion, cfg => cfg.MapFrom(_ => DateTime.Now))
+                // Total se calcula en el servicio sumando las líneas
+                .ForMember(d => d.TotalDevuelto, cfg => cfg.Ignore())
+                // IdUsuario lo setea el servicio con el usuario logueado
+                .ForMember(d => d.IdUsuario, cfg => cfg.Ignore())
+                // Venta (FK) ya viene en el request (opcional)
+                .ForMember(d => d.VentaId, cfg => cfg.MapFrom(s => s.VentaId))
+                // Navegaciones no se asignan desde el request
+                .ForMember(d => d.Venta, cfg => cfg.Ignore())
+                .ForMember(d => d.Usuario, cfg => cfg.Ignore())
+                .ForMember(d => d.Detalles, cfg => cfg.Ignore()); // se cargan con las líneas mapeadas
 
+            // Renglón de detalle desde línea de creación
             CreateMap<DevolucionLineaCreate, DetalleDevolucion>()
-                .ForMember(d => d.IdDetalle, m => m.Ignore())
-                .ForMember(d => d.ProductoNombre, m => m.Ignore()); // lo llenamos en el service
-
+                .ForMember(d => d.IdDetalle, cfg => cfg.Ignore())           // identity
+                .ForMember(d => d.IdDevolucion, cfg => cfg.Ignore())        // lo setea el servicio
+                .ForMember(d => d.Producto, cfg => cfg.Ignore())
+                .ForMember(d => d.Devolucion, cfg => cfg.Ignore())
+                // ImporteLineaTotal lo puede calcular el servicio (precio * cantidad)
+                .ForMember(d => d.ImporteLineaTotal, cfg => cfg.Ignore());
         }
     }
 }
