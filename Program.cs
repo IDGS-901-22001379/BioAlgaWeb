@@ -105,9 +105,11 @@ builder.Services.AddScoped<IVentaRepository, VentaRepository>();
 builder.Services.AddScoped<IVentaService, VentaService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 
-// ======== Devoluciones (nuevo wiring limpio) ========
-
+// Devoluciones
 builder.Services.AddScoped<IDevolucionService, DevolucionService>();
+
+// ======== Pedidos (NUEVO) ========
+builder.Services.AddScoped<IPedidoService, PedidoService>();
 
 // ===============================
 // CORS (Angular)

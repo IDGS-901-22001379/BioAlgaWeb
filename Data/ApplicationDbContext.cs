@@ -1,7 +1,7 @@
 // Data/ApplicationDbContext.cs
 using BioAlga.Backend.Models;
 using Microsoft.EntityFrameworkCore;
-using BioAlga.Backend.Models.Enums; // (si usas enums de modelos)
+using BioAlga.Backend.Models.Enums; // EstatusPedido, etc.
 
 namespace BioAlga.Backend.Data
 {
@@ -34,9 +34,13 @@ namespace BioAlga.Backend.Data
         public DbSet<CajaMovimiento> CajaMovimientos { get; set; } = null!;
         public DbSet<CajaCorte> CajaCortes { get; set; } = null!;
 
-        // ======= DEVOLUCIONES (NUEVO) =======
+        // ======= DEVOLUCIONES =======
         public DbSet<Devolucion> Devoluciones => Set<Devolucion>();
         public DbSet<DetalleDevolucion> DetalleDevoluciones => Set<DetalleDevolucion>();
+
+        // ======= PEDIDOS (NUEVO) =======
+        public DbSet<Pedido> Pedidos => Set<Pedido>();
+        public DbSet<DetallePedido> DetallePedidos => Set<DetallePedido>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -290,7 +294,7 @@ namespace BioAlga.Backend.Data
                 e.Property(m => m.Fecha).HasColumnName("fecha").HasDefaultValueSql("CURRENT_TIMESTAMP");
                 e.Property(m => m.OrigenTipo).HasColumnName("origen_tipo").HasMaxLength(20);
                 e.Property(m => m.OrigenId).HasColumnName("origen_id");
-                e.Property(m => m.IdUsuario).HasColumnName("id_usuario");
+                e.Property(m => m.IdUsuario).HasColumnName("idUsuario").HasColumnName("id_usuario");
                 e.Property(m => m.Referencia).HasColumnName("referencia");
                 e.HasIndex(m => new { m.OrigenTipo, m.OrigenId }).HasDatabaseName("idx_mov_origen");
                 e.HasIndex(m => new { m.IdProducto, m.Fecha }).HasDatabaseName("idx_mov_prod_fecha");
@@ -328,7 +332,7 @@ namespace BioAlga.Backend.Data
             });
 
             // ============================================
-            // DEVOLUCIONES (ÚNICO BLOQUE NUEVO/ACTUALIZADO)
+            // DEVOLUCIONES
             // ============================================
             modelBuilder.Entity<Devolucion>(e =>
             {
@@ -366,7 +370,6 @@ namespace BioAlga.Backend.Data
                     .HasColumnName("referencia_venta")
                     .HasMaxLength(50);
 
-                // --- FK opcional a venta (si tienes columna venta_id) ---
                 e.Property(x => x.VentaId).HasColumnName("venta_id");
                 e.HasOne(x => x.Venta)
                     .WithMany()
@@ -374,20 +377,17 @@ namespace BioAlga.Backend.Data
                     .OnDelete(DeleteBehavior.SetNull)
                     .HasConstraintName("fk_devol_venta");
 
-                // FK Usuario (integridad)
                 e.HasOne(x => x.Usuario)
                     .WithMany()
                     .HasForeignKey(x => x.IdUsuario)
                     .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_devol_usuario");
 
-                // Relación con detalles
                 e.HasMany(x => x.Detalles)
                     .WithOne(d => d.Devolucion!)
                     .HasForeignKey(d => d.IdDevolucion)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Índices
                 e.HasIndex(x => x.FechaDevolucion).HasDatabaseName("idx_devol_fecha");
                 e.HasIndex(x => x.IdUsuario).HasDatabaseName("idx_devol_usuario");
             });
@@ -416,7 +416,6 @@ namespace BioAlga.Backend.Data
                     .HasColumnType("decimal(12,2)")
                     .IsRequired();
 
-                // --- FK opcional al renglón de venta (si tienes columna id_detalle_venta) ---
                 e.Property(x => x.IdDetalleVenta).HasColumnName("id_detalle_venta");
                 e.HasOne(x => x.DetalleVenta)
                     .WithMany()
@@ -424,7 +423,6 @@ namespace BioAlga.Backend.Data
                     .OnDelete(DeleteBehavior.SetNull)
                     .HasConstraintName("fk_dd_detventa");
 
-                // Navegación a producto (opcional)
                 e.HasOne(d => d.Producto)
                     .WithMany()
                     .HasForeignKey(d => d.IdProducto)
@@ -482,7 +480,67 @@ namespace BioAlga.Backend.Data
                 e.HasOne(x => x.CajaApertura).WithMany().HasForeignKey(x => x.IdCajaApertura);
             });
 
-            // (Si después mapeas vistas, usa entidades keyless con .ToView(...))
+            // ============================================
+            // PEDIDOS (NUEVO)
+            // ============================================
+            modelBuilder.Entity<Pedido>(e =>
+            {
+                e.ToTable("pedidos");
+
+                e.HasKey(p => p.IdPedido);
+                e.Property(p => p.IdPedido).HasColumnName("id_pedido");
+
+                e.Property(p => p.IdCliente).HasColumnName("cliente_id").IsRequired();
+                e.Property(p => p.IdUsuario).HasColumnName("id_usuario").IsRequired();
+
+                e.Property(p => p.FechaPedido).HasColumnName("fecha_pedido");
+                e.Property(p => p.FechaRequerida).HasColumnName("fecha_requerida");
+
+                e.Property(p => p.Anticipo).HasColumnName("anticipo").HasColumnType("decimal(12,2)");
+                e.Property(p => p.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
+                e.Property(p => p.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
+                e.Property(p => p.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
+
+                e.Property(p => p.Estatus).HasColumnName("estatus").HasConversion<string>();
+                e.Property(p => p.Notas).HasColumnName("notas");
+
+                e.HasIndex(p => p.Estatus).HasDatabaseName("idx_pedido_estatus");
+
+                e.HasOne(p => p.Cliente).WithMany()
+                    .HasForeignKey(p => p.IdCliente)
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .HasConstraintName("fk_pedido_cliente");
+
+                e.HasOne(p => p.Usuario).WithMany()
+                    .HasForeignKey(p => p.IdUsuario)
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .HasConstraintName("fk_pedido_usuario");
+
+                e.HasMany(p => p.Detalles).WithOne(d => d.Pedido!)
+                    .HasForeignKey(d => d.IdPedido)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<DetallePedido>(e =>
+            {
+                e.ToTable("detalle_pedido");
+
+                e.HasKey(d => d.IdDetalle);
+                e.Property(d => d.IdDetalle).HasColumnName("id_detalle");
+
+                e.Property(d => d.IdPedido).HasColumnName("id_pedido").IsRequired();
+                e.Property(d => d.IdProducto).HasColumnName("id_producto").IsRequired();
+
+                e.Property(d => d.Cantidad).HasColumnName("cantidad").IsRequired();
+                e.Property(d => d.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)").IsRequired();
+
+                e.HasOne(d => d.Producto).WithMany()
+                    .HasForeignKey(d => d.IdProducto)
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .HasConstraintName("fk_dpedido_prod");
+            });
+
+            // (Si luego mapeas vistas, usa entidades keyless con .ToView(...))
         }
     }
 }
