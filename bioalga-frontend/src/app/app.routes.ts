@@ -10,15 +10,18 @@ import { EmpleadosPageComponent } from './pages/empleados/empleados';
 import { ProveedoresPageComponent } from './pages/proveedores/proveedores';
 import { ProductosPageComponent } from './pages/productos/productos';
 
-// ✅ NUEVOS (Compras + Inventario)
+// ✅ Compras + Inventario
 import { ComprasPageComponent } from './pages/compras/compras';
 import { StockPageComponent } from './pages/inventario/stock/stock';
 
-// ✅ NUEVO: Ventas (POS)
+// ✅ Ventas (POS)
 import { VentasPageComponent } from './pages/ventas/ventas';
 
-// ✅ NUEVO: Devoluciones
+// ✅ Devoluciones
 import { DevolucionesPageComponent } from './pages/devoluciones/devoluciones';
+
+// ✅ ⬅️ NUEVO: Pedidos
+import { PedidosPageComponent } from './pages/pedidos/pedidos';
 
 export const routes: Routes = [
   // Ruta por defecto → login
@@ -42,9 +45,8 @@ export const routes: Routes = [
       { path: 'proveedores', component: ProveedoresPageComponent },
       { path: 'productos', component: ProductosPageComponent },
 
-      // ✅ NUEVAS RUTAS
+      // ✅ Módulos existentes
       { path: 'compras', component: ComprasPageComponent },
-
       {
         path: 'inventario',
         children: [
@@ -52,13 +54,13 @@ export const routes: Routes = [
           { path: 'stock', component: StockPageComponent },
         ]
       },
-
-      // ✅ NUEVO: Ventas (POS)
       { path: 'ventas', component: VentasPageComponent },
       { path: 'pos', redirectTo: 'ventas' }, // alias cómodo
-
-      // ✅ NUEVO: Devoluciones
       { path: 'devoluciones', component: DevolucionesPageComponent },
+
+      // ✅ ⬅️ NUEVO: Pedidos
+      { path: 'pedidos', component: PedidosPageComponent },
+      // (opcional) alias: { path: 'ordenes', redirectTo: 'pedidos' },
     ]
   },
 

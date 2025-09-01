@@ -1,1 +1,271 @@
-<p>pedidos works!</p>
+<div class="container-fluid mt-3 pedidos-container">
+  <div class="row">
+    <!-- ===================== IZQUIERDA: BÚSQUEDA + RESULTADOS ===================== -->
+    <div class="col-lg-5 mb-3">
+      <!-- BUSCADOR -->
+      <div class="card mb-3">
+        <div class="card-body position-relative">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input
+              #inputBuscar
+              type="text"
+              class="form-control"
+              placeholder="Busca por SKU, código o nombre…"
+              [formControl]="formBuscar.controls['q']"
+              (focus)="showSugerencias.set(true)"
+              (keydown)="onBuscadorKey($event)"
+              autocomplete="off"
+            />
+
+            <button class="btn btn-outline-secondary" type="button" (click)="limpiarBusqueda()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+            <button class="btn btn-outline-primary" type="button" (click)="forzarBusqueda()">
+              Buscar
+            </button>
+            <button class="btn btn-outline-dark" type="button" title="Lector de código" (click)="focusInput()">
+              <i class="bi bi-upc-scan"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE RESULTADOS -->
+      <div class="card">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+          <strong>Resultados</strong>
+          <small class="text-muted" *ngIf="resultados().length">({{ resultados().length }})</small>
+        </div>
+
+        <div class="table-responsive tabla-resultados">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width: 38%">Producto</th>
+                <th style="width: 18%">SKU</th>
+                <th class="text-end" style="width: 16%">Precio</th>
+                <th class="text-center" style="width: 16%">Existencia</th>
+                <th class="text-end" style="width: 12%">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let p of resultados(); let i = index"
+                [id]="'row-res-'+i"
+                [class.table-active]="i === selectedIndex()"
+                (mouseenter)="setSelected(i)"
+                (click)="agregarProductoRapido(p)"
+              >
+                <td class="text-truncate" title="{{ p.nombre }}">{{ p.nombre }}</td>
+                <td class="text-muted">{{ p.sku }}</td>
+                <td class="text-end">
+                  <span class="fw-semibold">{{ (p.precio ?? 0) | number:'1.2-2' }}</span>
+                </td>
+                <td class="text-center">{{ (p.stock ?? 0) | number:'1.0-0' }}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-primary" (click)="agregarProductoRapido(p); $event.stopPropagation()">
+                    <i class="bi bi-cart-plus"></i> Agregar
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="!resultados().length">
+                <td colspan="5" class="text-center text-muted py-3">
+                  Empieza buscando un producto arriba o escanea un código.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== DERECHA: DATOS DEL PEDIDO + LÍNEAS ===================== -->
+    <div class="col-lg-7">
+      <!-- DATOS DEL PEDIDO -->
+      <div class="card mb-3">
+        <div class="card-header py-2">
+          <strong>Datos del pedido</strong>
+          <span class="ms-2 badge bg-info" *ngIf="pedidoCreado()">#{{ pedidoCreado()?.idPedido }}</span>
+          <small class="text-muted ms-2" *ngIf="ultGuardado()">Guardado: {{ ultGuardado() | date:'shortTime' }}</small>
+        </div>
+
+        <div class="card-body">
+          <form [formGroup]="formPedido" class="row g-3 align-items-end">
+            <div class="col-md-6">
+              <label class="form-label">Cliente (obligatorio)</label>
+              <input type="number" class="form-control" formControlName="clienteId" placeholder="ID cliente">
+              <div class="form-text">
+                El tipo de precio se ajusta al tipo del cliente.
+              </div>
+              <div class="mt-2">
+                <small class="text-muted">
+                  <ng-container *ngIf="clienteDetectado() as c; else noCliente">
+                    Cliente:
+                    <b>{{ c.nombre }} {{ c.apellido_Paterno }} {{ c.apellido_Materno }}</b>
+                    • Tipo: <span class="badge bg-secondary">{{ c.tipo_Cliente }}</span>
+                  </ng-container>
+                  <ng-template #noCliente>
+                    <span class="text-muted">Sin cliente seleccionado</span>
+                  </ng-template>
+                </small>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Fecha requerida</label>
+              <input type="date" class="form-control" formControlName="fechaRequerida">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Anticipo</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" min="0" step="0.01" class="form-control" formControlName="anticipo">
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">IVA %</label>
+              <select class="form-select" formControlName="ivaPct">
+                <option [ngValue]="0">0%</option>
+                <option [ngValue]="8">8%</option>
+                <option [ngValue]="16">16%</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Tipo de precio</label>
+              <select class="form-select" formControlName="tipoPrecio">
+                <option value="Normal">Normal</option>
+                <option value="Mayoreo">Mayoreo</option>
+                <option value="Descuento">Descuento</option>
+                <option value="Especial">Especial</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="chkReservar" formControlName="reservarStock">
+                <label class="form-check-label" for="chkReservar">
+                  Reservar stock al confirmar (opcional)
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- LÍNEAS DEL PEDIDO -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Productos del pedido</strong>
+          <button class="btn btn-sm btn-outline-danger" (click)="vaciarCarrito()" [disabled]="!lineas().length">
+            <i class="bi bi-trash"></i> Vaciar
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Producto</th>
+                <th class="text-center">Cant</th>
+                <th class="text-end">P.Unit</th>
+                <th class="text-end">Importe</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let l of lineas(); let i = index">
+                <td class="text-truncate" style="max-width:200px">{{ l.nombre || ('#'+l.idProducto) }}</td>
+
+                <td class="text-center">
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, -1)" [disabled]="l.cantidad<=1">
+                      <i class="bi bi-dash"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary disabled">{{ l.cantidad }}</button>
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, +1)">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                </td>
+
+                <td class="text-end">{{ l.precioUnitario | number:'1.2-2' }}</td>
+                <td class="text-end">{{ (l.cantidad * l.precioUnitario) | number:'1.2-2' }}</td>
+
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-danger" (click)="eliminarLinea(i)">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="!lineas().length">
+                <td colspan="5" class="text-center text-muted py-3">Agrega productos al pedido</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-footer">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Subtotal</span>
+            <strong>$ {{ (subtotal() | number:'1.2-2') }}</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Impuestos</span>
+            <strong>$ {{ (impuestos() | number:'1.2-2') }}</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="fs-5">Total</span>
+            <span class="fs-5 fw-bold">$ {{ (total() | number:'1.2-2') }}</span>
+          </div>
+
+          <div class="row g-2 mt-3">
+            <div class="col-md-6">
+              <button class="btn btn-outline-primary w-100"
+                      (click)="guardarBorrador()"
+                      [disabled]="!lineas().length || cargando()">
+                <i class="bi bi-save"></i> Guardar borrador
+              </button>
+            </div>
+            <div class="col-md-6">
+              <button class="btn btn-outline-secondary w-100"
+                      (click)="actualizarCabecera()"
+                      [disabled]="!pedidoCreado() || cargando()">
+                <i class="bi bi-pencil-square"></i> Actualizar cabecera
+              </button>
+            </div>
+            <div class="col-md-6">
+              <button class="btn btn-outline-warning w-100"
+                      (click)="sincronizarLineas()"
+                      [disabled]="!pedidoCreado() || !lineas().length || cargando()">
+                <i class="bi bi-arrow-repeat"></i> Sincronizar líneas
+              </button>
+            </div>
+            <div class="col-md-6">
+              <button class="btn btn-success w-100"
+                      (click)="confirmarPedido()"
+                      [disabled]="!pedidoCreado() || cargando()">
+                <i class="bi bi-check2-circle"></i> Confirmar pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INFO -->
+      <div class="alert alert-info" *ngIf="!pedidoCreado()">
+        <i class="bi bi-info-circle"></i>
+        Guarda primero el <b>borrador</b>; los precios se congelan al <b>confirmar</b>.
+      </div>
+      <div class="alert alert-success" *ngIf="pedidoCreado()">
+        <i class="bi bi-check-circle"></i>
+        Borrador #{{ pedidoCreado()?.idPedido }} creado. Puedes sincronizar líneas y confirmar.
+      </div>
+    </div>
+  </div>
+</div>
