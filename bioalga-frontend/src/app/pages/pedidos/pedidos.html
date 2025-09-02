@@ -7,16 +7,9 @@
         <div class="card-body position-relative">
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input
-              #inputBuscar
-              type="text"
-              class="form-control"
-              placeholder="Busca por SKU, código o nombre…"
-              [formControl]="formBuscar.controls['q']"
-              (focus)="showSugerencias.set(true)"
-              (keydown)="onBuscadorKey($event)"
-              autocomplete="off"
-            />
+            <input #buscar type="text" class="form-control" placeholder="Busca por SKU, código o nombre…"
+              [formControl]="formBuscar.controls['q']" (focus)="showSugerencias.set(true)"
+              (keydown)="onBuscadorKey($event)" (input)="onBuscarPedidosChange(buscar.value)" autocomplete="off" />
 
             <button class="btn btn-outline-secondary" type="button" (click)="limpiarBusqueda()">
               <i class="bi bi-x-lg"></i>
@@ -50,13 +43,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr
-                *ngFor="let p of resultados(); let i = index"
-                [id]="'row-res-'+i"
-                [class.table-active]="i === selectedIndex()"
-                (mouseenter)="setSelected(i)"
-                (click)="agregarProductoRapido(p)"
-              >
+              <tr *ngFor="let p of resultados(); let i = index" [id]="'row-res-'+i"
+                [class.table-active]="i === selectedIndex()" (mouseenter)="setSelected(i)"
+                (click)="agregarProductoRapido(p)">
                 <td class="text-truncate" title="{{ p.nombre }}">{{ p.nombre }}</td>
                 <td class="text-muted">{{ p.sku }}</td>
                 <td class="text-end">
@@ -95,7 +84,7 @@
           <form [formGroup]="formPedido" class="row g-3 align-items-end">
             <div class="col-md-6">
               <label class="form-label">Cliente (obligatorio)</label>
-              <input type="number" class="form-control" formControlName="clienteId" placeholder="ID cliente">
+              <input type="number" class="form-control" formControlName="clienteId" placeholder="ID cliente" />
               <div class="form-text">
                 El tipo de precio se ajusta al tipo del cliente.
               </div>
@@ -115,14 +104,14 @@
 
             <div class="col-md-6">
               <label class="form-label">Fecha requerida</label>
-              <input type="date" class="form-control" formControlName="fechaRequerida">
+              <input type="date" class="form-control" formControlName="fechaRequerida" />
             </div>
 
             <div class="col-md-4">
               <label class="form-label">Anticipo</label>
               <div class="input-group">
                 <span class="input-group-text">$</span>
-                <input type="number" min="0" step="0.01" class="form-control" formControlName="anticipo">
+                <input type="number" min="0" step="0.01" class="form-control" formControlName="anticipo" />
               </div>
             </div>
 
@@ -147,7 +136,7 @@
 
             <div class="col-12">
               <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="chkReservar" formControlName="reservarStock">
+                <input class="form-check-input" type="checkbox" id="chkReservar" formControlName="reservarStock" />
                 <label class="form-check-label" for="chkReservar">
                   Reservar stock al confirmar (opcional)
                 </label>
@@ -183,7 +172,8 @@
 
                 <td class="text-center">
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, -1)" [disabled]="l.cantidad<=1">
+                    <button class="btn btn-outline-secondary" (click)="cambiarCantidad(i, -1)"
+                      [disabled]="l.cantidad<=1">
                       <i class="bi bi-dash"></i>
                     </button>
                     <button class="btn btn-outline-secondary disabled">{{ l.cantidad }}</button>
@@ -226,31 +216,41 @@
 
           <div class="row g-2 mt-3">
             <div class="col-md-6">
-              <button class="btn btn-outline-primary w-100"
-                      (click)="guardarBorrador()"
-                      [disabled]="!lineas().length || cargando()">
+              <button class="btn btn-outline-primary w-100" (click)="guardarBorrador()"
+                [disabled]="!lineas().length || cargando()">
                 <i class="bi bi-save"></i> Guardar borrador
               </button>
             </div>
             <div class="col-md-6">
-              <button class="btn btn-outline-secondary w-100"
-                      (click)="actualizarCabecera()"
-                      [disabled]="!pedidoCreado() || cargando()">
+              <button class="btn btn-outline-secondary w-100" (click)="actualizarCabecera"
+                [disabled]="!pedidoCreado() || cargando()">
                 <i class="bi bi-pencil-square"></i> Actualizar cabecera
               </button>
             </div>
             <div class="col-md-6">
-              <button class="btn btn-outline-warning w-100"
-                      (click)="sincronizarLineas()"
-                      [disabled]="!pedidoCreado() || !lineas().length || cargando()">
+              <button class="btn btn-outline-warning w-100" (click)="sincronizarLineas()"
+                [disabled]="!pedidoCreado() || !lineas().length || cargando()">
                 <i class="bi bi-arrow-repeat"></i> Sincronizar líneas
               </button>
             </div>
             <div class="col-md-6">
-              <button class="btn btn-success w-100"
-                      (click)="confirmarPedido()"
-                      [disabled]="!pedidoCreado() || cargando()">
+              <button class="btn btn-success w-100" (click)="confirmarPedido()"
+                [disabled]="!pedidoCreado() || cargando()">
                 <i class="bi bi-check2-circle"></i> Confirmar pedido
+              </button>
+            </div>
+          </div>
+
+          <!-- Botones para abrir modales -->
+          <div class="row g-2 mt-3">
+            <div class="col-md-6">
+              <button class="btn btn-primary w-100" type="button" (click)="abrirPedidosModal()">
+                <i class="bi bi-list-ul"></i> Ver pedidos
+              </button>
+            </div>
+            <div class="col-md-6">
+              <button class="btn btn-outline-primary w-100" type="button" (click)="abrirBorradoresModal()">
+                <i class="bi bi-file-earmark-text"></i> Ver borradores
               </button>
             </div>
           </div>
@@ -265,6 +265,216 @@
       <div class="alert alert-success" *ngIf="pedidoCreado()">
         <i class="bi bi-check-circle"></i>
         Borrador #{{ pedidoCreado()?.idPedido }} creado. Puedes sincronizar líneas y confirmar.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================== MODAL: LISTADO DE PEDIDOS ========================== -->
+<div class="modal fade" tabindex="-1" [class.show]="showPedidosModal()"
+  [ngStyle]="{display: showPedidosModal() ? 'block' : 'none'}" *ngIf="showPedidosModal()">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-list-ul me-2"></i>Pedidos</h5>
+        <button type="button" class="btn-close btn-close-white" (click)="cerrarPedidosModal()"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Buscar</label>
+            <input type="text" class="form-control" placeholder="Folio, cliente..."
+              (input)="onBuscarPedidosChange($any($event.target).value)" />
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Estatus</label>
+            <select #estatusSel class="form-select" (change)="onChangeFiltroEstatus($any(estatusSel.value))">
+              <option value="TODOS">TODOS</option>
+              <option value="Borrador">Borrador</option>
+              <option value="Confirmado">Confirmado</option>
+              <option value="Preparacion">Preparación</option>
+              <option value="Listo">Listo</option>
+              <option value="Facturado">Facturado</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+
+          </div>
+
+
+        </div>
+
+        <div class="table-responsive" [class.opacity-50]="cargandoLista()">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Folio</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th class="text-end">Subtotal</th>
+                <th class="text-end">Impuestos</th>
+                <th class="text-end">Total</th>
+                <th>Estatus</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of pedidos()">
+                <td>#{{ p.idPedido }}</td>
+                <td>{{ p.fechaPedido | date:'short' }}</td>
+                <td>{{ p.clienteNombre }}</td>
+                <td class="text-end">{{ p.subtotal | number:'1.2-2' }}</td>
+                <td class="text-end">{{ p.impuestos | number:'1.2-2' }}</td>
+                <td class="text-end fw-semibold">{{ p.total | number:'1.2-2' }}</td>
+                <td>
+                  <span class="badge" [class.bg-success]="p.estatus==='Entregado'" [ngClass]="badgeClass(p.estatus)">
+                    {{ p.estatus }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <!-- Acciones según estatus -->
+                  <ng-container [ngSwitch]="p.estatus">
+                    <!-- Borrador -->
+                    <ng-container *ngSwitchCase="'Borrador'">
+                      <button class="btn btn-sm btn-outline-primary me-1" (click)="seleccionarBorrador(p)">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="btn btn-sm btn-success me-1" (click)="confirmarDesdeLista(p)">
+                        <i class="bi bi-check2-circle"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-danger" (click)="eliminarBorrador(p)">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </ng-container>
+
+                    <!-- Confirmado -->
+                    <ng-container *ngSwitchCase="'Confirmado'">
+                      <button class="btn btn-sm btn-outline-primary me-1"
+                        (click)="avanzarEstatus(p, EstatusPedidoEnum.Preparacion)">
+                        Preparación
+                      </button>
+                      <button class="btn btn-sm btn-outline-danger" (click)="cancelarPedido(p)">
+                        Cancelar
+                      </button>
+                    </ng-container>
+
+                    <!-- Preparación -->
+                    <ng-container *ngSwitchCase="'Preparacion'">
+                      <button class="btn btn-sm btn-outline-warning me-1"
+                        (click)="avanzarEstatus(p, EstatusPedidoEnum.Listo)">
+                        Listo
+                      </button>
+                      <button class="btn btn-sm btn-outline-danger" (click)="cancelarPedido(p)">
+                        Cancelar
+                      </button>
+                    </ng-container>
+
+                    <!-- Listo -->
+                    <ng-container *ngSwitchCase="'Listo'">
+                      <button class="btn btn-sm btn-outline-secondary me-1"
+                        (click)="avanzarEstatus(p, EstatusPedidoEnum.Facturado)">
+                        Facturar
+                      </button>
+                      <button class="btn btn-sm btn-outline-danger" (click)="cancelarPedido(p)">
+                        Cancelar
+                      </button>
+                    </ng-container>
+
+                    <!-- Facturado -->
+                    <ng-container *ngSwitchCase="'Facturado'">
+                      <button class="btn btn-sm btn-outline-success"
+                        (click)="avanzarEstatus(p, EstatusPedidoEnum.Entregado)">
+                        Entregar
+                      </button>
+                    </ng-container>
+
+                    <ng-container *ngSwitchDefault>
+                      <span class="text-muted">—</span>
+                    </ng-container>
+                  </ng-container>
+                </td>
+              </tr>
+
+              <tr *ngIf="!pedidos().length">
+                <td colspan="8" class="text-center text-muted py-3">No hay pedidos para los filtros actuales.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación simple -->
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div>Registros: {{ total() }}</div>
+          <div class="btn-group">
+            <button class="btn btn-outline-secondary btn-sm" (click)="irPagina(page()-1)"
+              [disabled]="page()<=1">«</button>
+            <button class="btn btn-outline-secondary btn-sm disabled">{{ page() }}</button>
+            <button class="btn btn-outline-secondary btn-sm" (click)="irPagina(page()+1)"
+              [disabled]="(page()*pageSize()) >= total()">»</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" (click)="cerrarPedidosModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================== MODAL: LISTADO DE BORRADORES ========================== -->
+<div class="modal fade" tabindex="-1" [class.show]="showBorradoresModal()"
+  [ngStyle]="{display: showBorradoresModal() ? 'block' : 'none'}" *ngIf="showBorradoresModal()">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-secondary text-white">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Borradores</h5>
+        <button type="button" class="btn-close btn-close-white" (click)="cerrarBorradoresModal()"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="table-responsive" [class.opacity-50]="cargandoLista()">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Folio</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of pedidos()">
+                <td>#{{ p.idPedido }}</td>
+                <td>{{ p.fechaPedido | date:'short' }}</td>
+                <td>{{ p.clienteNombre }}</td>
+                <td class="text-end">{{ p.total | number:'1.2-2' }}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary me-1" (click)="seleccionarBorrador(p)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-success me-1" (click)="confirmarDesdeLista(p)">
+                    <i class="bi bi-check2-circle"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" (click)="eliminarBorrador(p)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="!pedidos().length">
+                <td colspan="5" class="text-center text-muted py-3">No hay borradores.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" (click)="cerrarBorradoresModal()">Cerrar</button>
       </div>
     </div>
   </div>

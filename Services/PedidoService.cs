@@ -60,14 +60,13 @@ namespace BioAlga.Backend.Services
             if (estatus.HasValue)
                 query = query.Where(p => p.Estatus == estatus.Value);
 
-            // Ordenamiento básico
             bool desc = (sortDir ?? "DESC").Equals("DESC", StringComparison.OrdinalIgnoreCase);
             query = (sortBy ?? "FechaPedido") switch
             {
-                "Total"        => (desc ? query.OrderByDescending(x => x.Total)       : query.OrderBy(x => x.Total)),
-                "Estatus"      => (desc ? query.OrderByDescending(x => x.Estatus)     : query.OrderBy(x => x.Estatus)),
-                "FechaPedido"  => (desc ? query.OrderByDescending(x => x.FechaPedido) : query.OrderBy(x => x.FechaPedido)),
-                _              => (desc ? query.OrderByDescending(x => x.FechaPedido) : query.OrderBy(x => x.FechaPedido)),
+                "Total" => (desc ? query.OrderByDescending(x => x.Total) : query.OrderBy(x => x.Total)),
+                "Estatus" => (desc ? query.OrderByDescending(x => x.Estatus) : query.OrderBy(x => x.Estatus)),
+                "FechaPedido" => (desc ? query.OrderByDescending(x => x.FechaPedido) : query.OrderBy(x => x.FechaPedido)),
+                _ => (desc ? query.OrderByDescending(x => x.FechaPedido) : query.OrderBy(x => x.FechaPedido)),
             };
 
             var total = await query.CountAsync();
@@ -91,19 +90,15 @@ namespace BioAlga.Backend.Services
         // =========================
         public async Task<PedidoDto> CrearAsync(int idUsuario, PedidoCreateRequest req)
         {
-            // Validaciones
             await ValidarClienteExiste(req.IdCliente);
-
             if (req.Lineas is null || req.Lineas.Count == 0)
                 throw new ValidationException("El pedido debe tener al menos una línea.");
 
-            // Construcción
             var pedido = _mapper.Map<Pedido>(req);
             pedido.IdUsuario = idUsuario;
             pedido.FechaPedido = DateTime.Now;
             pedido.Estatus = EstatusPedido.Borrador;
 
-            // Cargar líneas (sin precio fijo aún)
             foreach (var l in req.Lineas)
             {
                 var det = _mapper.Map<DetallePedido>(l);
@@ -111,7 +106,7 @@ namespace BioAlga.Backend.Services
                 pedido.Detalles.Add(det);
             }
 
-            RecalcularTotales(pedido); // usa el precio que tenga la línea (si 0, subtotal quedará 0 hasta confirmar)
+            RecalcularTotales(pedido);
             _db.Pedidos.Add(pedido);
             await _db.SaveChangesAsync();
 
@@ -126,20 +121,29 @@ namespace BioAlga.Backend.Services
             if (pedido.Estatus != EstatusPedido.Borrador)
                 throw new ValidationException("Solo se puede editar la cabecera en Borrador.");
 
-            // Cambios permitidos
             if (req.IdCliente.HasValue)
             {
                 await ValidarClienteExiste(req.IdCliente.Value);
-                pedido.IdCliente = req.IdCliente.Value;
+                if (pedido.IdCliente != req.IdCliente.Value)
+                    pedido.IdCliente = req.IdCliente.Value;
             }
 
-            if (req.FechaRequerida.HasValue) pedido.FechaRequerida = req.FechaRequerida.Value;
-            if (req.Anticipo.HasValue) pedido.Anticipo = req.Anticipo.Value;
-            if (req.Notas != null) pedido.Notas = req.Notas;
+            if (req.FechaRequerida.HasValue && pedido.FechaRequerida != req.FechaRequerida.Value)
+                pedido.FechaRequerida = req.FechaRequerida.Value;
 
-            RecalcularTotales(pedido);
+            if (req.Anticipo.HasValue && pedido.Anticipo != req.Anticipo.Value)
+                pedido.Anticipo = req.Anticipo.Value;
+
+            if (req.Notas != null && pedido.Notas != req.Notas)
+                pedido.Notas = req.Notas;
+
+            // Recalcula y asigna solo si cambian
+            var (sub, iva, tot) = CalcularTotales(pedido);
+            if (pedido.Subtotal != sub) pedido.Subtotal = sub;
+            if (pedido.Impuestos != iva) pedido.Impuestos = iva;
+            if (pedido.Total != tot) pedido.Total = tot;
+
             await _db.SaveChangesAsync();
-
             return await GetOrThrowDto(pedido.IdPedido);
         }
 
@@ -161,13 +165,14 @@ namespace BioAlga.Backend.Services
             foreach (var l in req.Lineas)
             {
                 var det = _mapper.Map<DetallePedido>(l);
-                det.PrecioUnitario = l.PrecioUnitarioOverride ?? 0m; // se congelará en Confirmar si 0
+                det.PrecioUnitario = l.PrecioUnitarioOverride ?? 0m;
                 pedido.Detalles.Add(det);
             }
 
-            RecalcularTotales(pedido);
-            await _db.SaveChangesAsync();
+            var (sub, iva, tot) = CalcularTotales(pedido);
+            pedido.Subtotal = sub; pedido.Impuestos = iva; pedido.Total = tot;
 
+            await _db.SaveChangesAsync();
             return await GetOrThrowDto(pedido.IdPedido);
         }
 
@@ -183,26 +188,31 @@ namespace BioAlga.Backend.Services
 
             if (req.IdDetalle.HasValue)
             {
-                // Editar existente
                 var det = pedido.Detalles.FirstOrDefault(x => x.IdDetalle == req.IdDetalle.Value)
                     ?? throw new KeyNotFoundException("Detalle no encontrado.");
 
-                det.IdProducto = req.IdProducto;
-                det.Cantidad   = req.Cantidad;
-                if (req.PrecioUnitarioOverride.HasValue)
+                if (det.IdProducto != req.IdProducto) det.IdProducto = req.IdProducto;
+                if (det.Cantidad != req.Cantidad) det.Cantidad = req.Cantidad;
+
+                if (req.PrecioUnitarioOverride.HasValue &&
+                    det.PrecioUnitario != req.PrecioUnitarioOverride.Value)
+                {
                     det.PrecioUnitario = req.PrecioUnitarioOverride.Value;
+                }
             }
             else
             {
-                // Agregar nueva
                 var det = _mapper.Map<DetallePedido>(req);
                 det.PrecioUnitario = req.PrecioUnitarioOverride ?? 0m;
                 pedido.Detalles.Add(det);
             }
 
-            RecalcularTotales(pedido);
-            await _db.SaveChangesAsync();
+            var (sub, iva, tot) = CalcularTotales(pedido);
+            if (pedido.Subtotal != sub) pedido.Subtotal = sub;
+            if (pedido.Impuestos != iva) pedido.Impuestos = iva;
+            if (pedido.Total != tot) pedido.Total = tot;
 
+            await _db.SaveChangesAsync();
             return await GetOrThrowDto(pedido.IdPedido);
         }
 
@@ -211,7 +221,6 @@ namespace BioAlga.Backend.Services
         // =========================
         public async Task<PedidoDto> ConfirmarAsync(int idUsuario, PedidoConfirmarRequest req)
         {
-            // Confirmación: congela precios por tipo de cliente, opcional reserva
             var pedido = await _db.Pedidos
                 .Include(p => p.Detalles)
                 .FirstOrDefaultAsync(p => p.IdPedido == req.IdPedido)
@@ -220,28 +229,45 @@ namespace BioAlga.Backend.Services
             if (pedido.Estatus != EstatusPedido.Borrador)
                 throw new ValidationException("Solo se puede confirmar un pedido en Borrador.");
 
-            // Trae tipo de cliente
             var cliente = await _db.Clientes.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.IdCliente == pedido.IdCliente)
                 ?? throw new ValidationException("Cliente no existe.");
 
-            // Congelar precios
+            // ---- CONGELAR PRECIOS evitando updates no-op ----
             foreach (var d in pedido.Detalles)
             {
-                if (d.PrecioUnitario > 0) continue; // ya forzado por override
+                var entry = _db.Entry(d);
+                var orig = entry.Property(x => x.PrecioUnitario).OriginalValue;
 
-                var precio = await ObtenerPrecioVigentePorClienteAsync(d.IdProducto, cliente.TipoCliente);
-                if (precio is null)
-                    throw new ValidationException($"No existe precio vigente para el producto {d.IdProducto} (tipo: {cliente.TipoCliente}).");
+                if (d.PrecioUnitario <= 0m)
+                {
+                    var precio = await ObtenerPrecioVigentePorClienteAsync(d.IdProducto, cliente.TipoCliente)
+                                 ?? throw new ValidationException($"No existe precio vigente para el producto {d.IdProducto} (tipo: {cliente.TipoCliente}).");
 
-                d.PrecioUnitario = precio.Value;
+                    // Asigna solo si cambia
+                    if (orig != precio)
+                        d.PrecioUnitario = precio;
+                    else
+                        entry.Property(x => x.PrecioUnitario).IsModified = false; // blindaje extra
+                }
+                else
+                {
+                    // Si venía con override y es igual al original, evita marcarlo como modificado
+                    if (orig == d.PrecioUnitario)
+                        entry.Property(x => x.PrecioUnitario).IsModified = false;
+                }
             }
 
-            pedido.Estatus = EstatusPedido.Confirmado;
-            RecalcularTotales(pedido);
+            // Estatus + totales (asignar solo si cambian)
+            var prevStatus = pedido.Estatus;
+            var (sub, iva, tot) = CalcularTotales(pedido);
 
-            // TODO: Reserva de stock si req.ReservarStock == true
-            // Política recomendada: marcar "reservado" lógico; movimientos reales al facturar.
+            if (prevStatus != EstatusPedido.Confirmado)
+                pedido.Estatus = EstatusPedido.Confirmado;
+
+            if (pedido.Subtotal != sub) pedido.Subtotal = sub;
+            if (pedido.Impuestos != iva) pedido.Impuestos = iva;
+            if (pedido.Total != tot) pedido.Total = tot;
 
             await _db.SaveChangesAsync();
             return await GetOrThrowDto(pedido.IdPedido);
@@ -254,13 +280,13 @@ namespace BioAlga.Backend.Services
                 .FirstOrDefaultAsync(p => p.IdPedido == req.IdPedido)
                 ?? throw new KeyNotFoundException("Pedido no encontrado.");
 
-            // Validar transición simple (más reglas se pueden agregar)
             if (!TransicionValida(pedido.Estatus, req.NuevoEstatus))
                 throw new ValidationException($"Transición no permitida: {pedido.Estatus} → {req.NuevoEstatus}");
 
-            pedido.Estatus = req.NuevoEstatus;
-            await _db.SaveChangesAsync();
+            if (pedido.Estatus != req.NuevoEstatus)
+                pedido.Estatus = req.NuevoEstatus;
 
+            await _db.SaveChangesAsync();
             return await GetOrThrowDto(pedido.IdPedido);
         }
 
@@ -275,15 +301,18 @@ namespace BioAlga.Backend.Services
 
         private static void RecalcularTotales(Pedido p)
         {
-            // IVA configurable: por simplicidad aplicamos IVA global al subtotal.
-            // Si manejas exentos por producto, aquí recorrer y acumular por línea.
+            var (sub, iva, tot) = CalcularTotales(p);
+            p.Subtotal = sub;
+            p.Impuestos = iva;
+            p.Total = tot;
+        }
+
+        private static (decimal Sub, decimal Iva, decimal Tot) CalcularTotales(Pedido p)
+        {
             var subtotal = p.Detalles.Sum(d => d.Cantidad * d.PrecioUnitario);
             var iva = Math.Round(subtotal * 0.16m, 2); // TODO: parametrizar
             var total = subtotal + iva;
-
-            p.Subtotal = Math.Round(subtotal, 2);
-            p.Impuestos = iva;
-            p.Total = Math.Round(total, 2);
+            return (Math.Round(subtotal, 2), iva, Math.Round(total, 2));
         }
 
         private static bool TransicionValida(EstatusPedido actual, EstatusPedido nuevo)
@@ -295,7 +324,6 @@ namespace BioAlga.Backend.Services
                 (EstatusPedido.Preparacion, EstatusPedido.Listo) => true,
                 (EstatusPedido.Listo, EstatusPedido.Facturado) => true,
                 (EstatusPedido.Facturado, EstatusPedido.Entregado) => true,
-                // cancelación permitida si no está totalmente entregado
                 (EstatusPedido.Borrador, EstatusPedido.Cancelado) => true,
                 (EstatusPedido.Confirmado, EstatusPedido.Cancelado) => true,
                 (EstatusPedido.Preparacion, EstatusPedido.Cancelado) => true,
@@ -310,14 +338,8 @@ namespace BioAlga.Backend.Services
             if (!ok) throw new ValidationException("El cliente especificado no existe.");
         }
 
-        /// <summary>
-        /// Devuelve el precio vigente según el tipo de cliente.
-        /// Si no hay precio del tipo, puedes cambiar política a fallback = Normal.
-        /// </summary>
         private async Task<decimal?> ObtenerPrecioVigentePorClienteAsync(int idProducto, string tipoCliente)
         {
-            // tipoCliente debe ser uno de: "Normal","Mayoreo","Descuento","Especial"
-            // Se asume tabla producto_precios con campos: tipo_precio, precio, activo, vigente_desde, vigente_hasta
             var now = DateTime.Now;
 
             var precio = await _db.ProductoPrecios
@@ -330,7 +352,6 @@ namespace BioAlga.Backend.Services
                 .Select(pp => (decimal?)pp.Precio)
                 .FirstOrDefaultAsync();
 
-            // Política opcional: si no hay precio de ese tipo, fallback a Normal
             if (precio is null && !tipoCliente.Equals("Normal", StringComparison.OrdinalIgnoreCase))
             {
                 precio = await _db.ProductoPrecios
@@ -346,5 +367,23 @@ namespace BioAlga.Backend.Services
 
             return precio;
         }
+
+
+        // Services/PedidoService.cs (implementación sugerida)
+        public async Task EliminarAsync(int idPedido)
+        {
+            var ped = await _db.Pedidos
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.IdPedido == idPedido)
+                ?? throw new KeyNotFoundException("Pedido no encontrado.");
+
+            if (ped.Estatus != EstatusPedido.Borrador)
+                throw new ValidationException("Solo se pueden eliminar pedidos en Borrador.");
+
+            // borra detalles y cabecera (EF Core 7+)
+            await _db.DetallePedidos.Where(d => d.IdPedido == idPedido).ExecuteDeleteAsync();
+            await _db.Pedidos.Where(p => p.IdPedido == idPedido).ExecuteDeleteAsync();
+        }
+
     }
 }

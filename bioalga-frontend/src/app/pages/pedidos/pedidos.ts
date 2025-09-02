@@ -48,6 +48,9 @@ export class PedidosPageComponent implements OnInit {
   private comprasApi = inject(ComprasService);
   private invApi = inject(InventarioService);
 
+  // Exponer enum (útil si lo usas en el HTML)
+  public EstatusPedidoEnum = EstatusPedido;
+
   cargando = signal(false);
 
   // ================== BUSCADOR ==================
@@ -70,7 +73,7 @@ export class PedidosPageComponent implements OnInit {
   // Estado local
   clienteDetectado = signal<ClienteDto | null>(null);
   lineas = signal<Array<{ idProducto: number; cantidad: number; precioUnitario: number; nombre?: string }>>([]);
-  pedidoCreado = signal<PedidoDto | null>(null);     // respuesta del backend al crear/editar
+  pedidoCreado = signal<PedidoDto | null>(null);
   ultGuardado = signal<Date | null>(null);
 
   // Totales (preview UI)
@@ -79,6 +82,18 @@ export class PedidosPageComponent implements OnInit {
   );
   impuestos = computed(() => +(this.subtotal() * (Number(this.formPedido.value.ivaPct ?? 0) / 100)).toFixed(2));
   total = computed(() => +(this.subtotal() + this.impuestos()).toFixed(2));
+
+  // ================== LISTADO / HISTORIAL ==================
+  showPedidosModal = signal(false);
+  showBorradoresModal = signal(false);
+  cargandoLista = signal(false);
+
+  filtroEstatus = signal<EstatusPedido | 'TODOS'>('TODOS');
+  filtroTexto   = signal<string>('');
+  page          = signal(1);
+  pageSize      = signal(20);
+  totalLista    = signal(0);
+  pedidos       = signal<PedidoListItemDto[]>([]);
 
   // ================== HOOKS ==================
   ngOnInit(): void {
@@ -129,9 +144,8 @@ export class PedidosPageComponent implements OnInit {
       if (curr.length) this.enriquecerResultados(curr, /*soloPrecio*/true);
     });
 
-    // Cambia IVA% → el total se recalcula automáticamente con el computed
+    // Cambia IVA% → el total se recalcula con el computed
     this.formPedido.controls['ivaPct'].valueChanges?.subscribe(() => {
-      // No necesitamos tocar líneas; el IVA es global en el preview.
       this.forceRefreshTotals();
     });
   }
@@ -163,7 +177,6 @@ export class PedidosPageComponent implements OnInit {
   onBuscadorKey(ev: KeyboardEvent): void {
     const len = this.resultados().length;
     if (!len) return;
-
     if (ev.key === 'ArrowDown') {
       ev.preventDefault(); this.moveSelection(+1);
     } else if (ev.key === 'ArrowUp') {
@@ -280,7 +293,6 @@ export class PedidosPageComponent implements OnInit {
   }
 
   // ================== Acciones Pedido (API) ==================
-  /** Construye el request de creación tomando los valores del formulario y líneas */
   private buildCreateRequest(): PedidoCreateRequest {
     const fecha = (this.formPedido.value.fechaRequerida || '').toString().trim();
     return {
@@ -288,7 +300,6 @@ export class PedidosPageComponent implements OnInit {
       fechaRequerida: fecha ? `${fecha}T00:00:00` : undefined,
       anticipo: Number(this.formPedido.value.anticipo ?? 0),
       notas: undefined,
-      // Importante: NO enviamos precioUnitarioOverride => se congela al Confirmar
       lineas: this.lineas().map(l => ({
         idProducto: l.idProducto,
         cantidad: l.cantidad,
@@ -297,7 +308,6 @@ export class PedidosPageComponent implements OnInit {
     };
   }
 
-  /** Guarda el borrador en el backend (POST) */
   guardarBorrador(): void {
     if (!this.lineas().length) { Swal.fire('Aviso', 'Agrega al menos un producto.', 'info'); return; }
     const idCliente = this.formPedido.value.clienteId;
@@ -321,7 +331,6 @@ export class PedidosPageComponent implements OnInit {
     });
   }
 
-  /** Reemplaza todas las líneas del borrador en el backend */
   sincronizarLineas(): void {
     const ped = this.pedidoCreado();
     if (!ped) { Swal.fire('Aviso', 'Primero guarda el borrador.', 'info'); return; }
@@ -331,7 +340,7 @@ export class PedidosPageComponent implements OnInit {
       lineas: this.lineas().map(l => ({
         idProducto: l.idProducto,
         cantidad: l.cantidad,
-        precioUnitarioOverride: undefined // se congelará al confirmar
+        precioUnitarioOverride: undefined
       }))
     };
 
@@ -347,7 +356,6 @@ export class PedidosPageComponent implements OnInit {
     });
   }
 
-  /** Actualiza cabecera del borrador (fecha requerida, anticipo, cliente) */
   actualizarCabecera(): void {
     const ped = this.pedidoCreado();
     if (!ped) { Swal.fire('Aviso', 'Primero guarda el borrador.', 'info'); return; }
@@ -373,7 +381,6 @@ export class PedidosPageComponent implements OnInit {
     });
   }
 
-  /** CONFIRMAR pedido (congelar precios y (opcional) reservar stock) */
   confirmarPedido(): void {
     const ped = this.pedidoCreado();
     if (!ped) { Swal.fire('Aviso', 'Primero guarda el borrador.', 'info'); return; }
@@ -401,13 +408,163 @@ export class PedidosPageComponent implements OnInit {
     });
   }
 
-  // ================== Listado / búsqueda de pedidos (historial) ==================
-  // (lo usaremos en el modal de historial cuando armemos el HTML)
-  buscarPedidos(params: PedidoQueryParams, cb: (items: PedidoListItemDto[], total: number) => void): void {
+  // ================== Listado / búsqueda de pedidos ==================
+  abrirPedidosModal(): void {
+    this.filtroEstatus.set('TODOS');
+    this.filtroTexto.set('');
+    this.page.set(1);
+    this.showPedidosModal.set(true);
+    this.cargarPedidos();
+  }
+  cerrarPedidosModal(): void { this.showPedidosModal.set(false); }
+
+  abrirBorradoresModal(): void {
+    this.filtroEstatus.set(EstatusPedido.Borrador);
+    this.filtroTexto.set('');
+    this.page.set(1);
+    this.showBorradoresModal.set(true);
+    this.cargarPedidos(); // usa el mismo loader con filtro = Borrador
+  }
+  cerrarBorradoresModal(): void { this.showBorradoresModal.set(false); }
+
+  onBuscarPedidosChange(q: string): void {
+    this.filtroTexto.set((q || '').trim());
+    this.page.set(1);
+    this.cargarPedidos();
+  }
+
+  // Versión que recibe el enum o 'TODOS'
+  onChangeFiltroEstatus(est: EstatusPedido | 'TODOS'): void {
+    this.filtroEstatus.set(est);
+    this.page.set(1);
+    this.cargarPedidos();
+  }
+  // Wrapper para HTML (string → enum/'TODOS')
+  onChangeFiltroEstatusStr(val: string): void {
+    const est: EstatusPedido | 'TODOS' =
+      val === 'TODOS' ? 'TODOS' : (val as EstatusPedido);
+    this.onChangeFiltroEstatus(est);
+  }
+
+  irPagina(p: number): void {
+    if (p < 1) return;
+    this.page.set(p);
+    this.cargarPedidos();
+  }
+
+  // Hacerla pública porque la llamas desde el template
+  cargarPedidos(): void {
+    const est = this.filtroEstatus();
+    const params: PedidoQueryParams = {
+      q: this.filtroTexto() || undefined,
+      estatus: est === 'TODOS' ? undefined : (est as EstatusPedido),
+      page: this.page(),
+      pageSize: this.pageSize(),
+      sortBy: 'FechaPedido',
+      sortDir: 'DESC',
+    };
+
+    this.cargandoLista.set(true);
     this.pedidosApi.buscar(params).subscribe({
-      next: resp => cb(resp.items || [], resp.total || 0),
-      error: () => cb([], 0)
+      next: (resp) => {
+        this.pedidos.set(resp.items ?? []);
+        this.totalLista.set(resp.total ?? 0);
+      },
+      error: () => {
+        this.pedidos.set([]);
+        this.totalLista.set(0);
+        Swal.fire('Error', 'No se pudieron cargar los pedidos', 'error');
+      },
+      complete: () => this.cargandoLista.set(false)
     });
+  }
+
+  // ===== Acciones sobre elementos del listado =====
+  seleccionarBorrador(p: PedidoListItemDto): void {
+    this.pedidosApi.getById(p.idPedido).subscribe({
+      next: dto => {
+        this.pedidoCreado.set(dto);
+
+        // Hydrate form + líneas
+        this.formPedido.patchValue({
+          clienteId: dto.idCliente ?? null,
+          fechaRequerida: dto.fechaRequerida ? dto.fechaRequerida.substring(0, 10) : '',
+          anticipo: dto.anticipo ?? 0,
+        });
+
+        this.lineas.set(
+          (dto.lineas || []).map(l => ({
+            idProducto: l.idProducto,
+            cantidad: l.cantidad,
+            precioUnitario: l.precioUnitario,
+            nombre: l.productoNombre
+          }))
+        );
+      },
+      error: () => Swal.fire('Error', 'No se pudo cargar el borrador', 'error')
+    });
+  }
+
+  confirmarDesdeLista(p: PedidoListItemDto): void {
+    Swal.fire({ title: `Confirmar pedido #${p.idPedido}?`, icon: 'question', showCancelButton: true })
+      .then(r => {
+        if (!r.isConfirmed) return;
+        const req: PedidoConfirmarRequest = { idPedido: p.idPedido, reservarStock: false };
+        this.pedidosApi.confirmar(req).subscribe({
+          next: () => { Swal.fire('OK', 'Pedido confirmado', 'success'); this.cargarPedidos(); },
+          error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo confirmar', 'error')
+        });
+      });
+  }
+
+  eliminarBorrador(p: PedidoListItemDto): void {
+    Swal.fire({ title: `Eliminar borrador #${p.idPedido}?`, text: 'Esta acción no se puede deshacer', icon: 'warning', showCancelButton: true })
+      .then(r => {
+        if (!r.isConfirmed) return;
+        this.pedidosApi.eliminar(p.idPedido).subscribe({
+          next: () => { Swal.fire('OK', 'Borrador eliminado', 'success'); this.cargarPedidos(); },
+          error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo eliminar', 'error')
+        });
+      });
+  }
+
+  cancelarPedido(p: PedidoListItemDto): void {
+    Swal.fire({ title: `Cancelar pedido #${p.idPedido}?`, icon: 'warning', showCancelButton: true })
+      .then(r => {
+        if (!r.isConfirmed) return;
+        this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: EstatusPedido.Cancelado })
+          .subscribe({
+            next: () => { Swal.fire('OK', 'Pedido cancelado', 'success'); this.cargarPedidos(); },
+            error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo cancelar', 'error')
+          });
+      });
+  }
+
+  avanzarEstatus(p: PedidoListItemDto, nuevo: EstatusPedido): void {
+    this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: nuevo })
+      .subscribe({
+        next: () => { Swal.fire('OK', 'Estatus actualizado', 'success'); this.cargarPedidos(); },
+        error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo actualizar', 'error')
+      });
+  }
+
+  // Badge helper para la UI
+  badgeClass(est: EstatusPedido): string {
+    switch (est) {
+      case EstatusPedido.Borrador:     return 'bg-secondary';
+      case EstatusPedido.Confirmado:   return 'bg-primary';
+      case EstatusPedido.Preparacion:  return 'bg-info';
+      case EstatusPedido.Listo:        return 'bg-warning text-dark';
+      case EstatusPedido.Facturado:    return 'bg-indigo'; // define en CSS si no existe
+      case EstatusPedido.Entregado:    return 'bg-success';
+      case EstatusPedido.Cancelado:    return 'bg-danger';
+      default: return 'bg-light text-dark';
+    }
+  }
+
+  estatusText(est: EstatusPedido): string {
+    // Es enum de strings; devolver el valor es suficiente
+    return est;
   }
 
   // ================== Util ==================

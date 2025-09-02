@@ -20,5 +20,9 @@ namespace BioAlga.Backend.Services.Interfaces
         // Flujo
         Task<PedidoDto> ConfirmarAsync(int idUsuario, PedidoConfirmarRequest req);
         Task<PedidoDto> CambiarEstatusAsync(int idUsuario, PedidoCambioEstatusRequest req);
+
+        // Interfaces/IPedidoService.cs
+        Task EliminarAsync(int idPedido);
+
     }
 }
