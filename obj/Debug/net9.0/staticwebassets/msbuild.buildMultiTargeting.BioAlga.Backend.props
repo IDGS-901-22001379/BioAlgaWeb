@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\BioAlga.Backend.props" />
-</Project>

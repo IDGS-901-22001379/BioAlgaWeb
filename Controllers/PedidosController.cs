@@ -12,18 +12,11 @@ namespace BioAlga.Backend.Controllers
     public class PedidosController : ControllerBase
     {
         private readonly IPedidoService _service;
+        public PedidosController(IPedidoService service) => _service = service;
 
-        public PedidosController(IPedidoService service)
-        {
-            _service = service;
-        }
-
-        // Utilidad: obtiene id de usuario desde header (o 1 por defecto en dev)
         private int ResolveUserId(int? headerUserId) => headerUserId ?? 1;
 
-        // =========================
-        // GET: api/pedidos
-        // =========================
+        // GET: api/pedidos?q=&estatus=&page=&pageSize=&sortBy=&sortDir=
         [HttpGet]
         [ProducesResponseType(typeof(PagedResponse<PedidoListItemDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<PedidoListItemDto>>> Buscar(
@@ -38,9 +31,7 @@ namespace BioAlga.Backend.Controllers
             return Ok(resp);
         }
 
-        // =========================
         // GET: api/pedidos/{id}
-        // =========================
         [HttpGet("{id:int}")]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -51,9 +42,7 @@ namespace BioAlga.Backend.Controllers
             return Ok(dto);
         }
 
-        // =========================
-        // POST: api/pedidos  (BORRADOR)
-        // =========================
+        // POST: api/pedidos (Borrador)
         [HttpPost]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -70,9 +59,7 @@ namespace BioAlga.Backend.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
         }
 
-        // =========================
-        // PUT: api/pedidos/header   (BORRADOR)
-        // =========================
+        // PUT: api/pedidos/header (Borrador)
         [HttpPut("header")]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -90,9 +77,7 @@ namespace BioAlga.Backend.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
         }
 
-        // =========================
-        // PUT: api/pedidos/lines/replace  (BORRADOR)
-        // =========================
+        // PUT: api/pedidos/lines/replace (Borrador)
         [HttpPut("lines/replace")]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -110,9 +95,7 @@ namespace BioAlga.Backend.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
         }
 
-        // =========================
-        // PUT: api/pedidos/lines/edit   (BORRADOR)
-        // =========================
+        // PUT: api/pedidos/lines/edit (Borrador)
         [HttpPut("lines/edit")]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -130,9 +113,7 @@ namespace BioAlga.Backend.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
         }
 
-        // =========================
         // PUT: api/pedidos/confirm
-        // =========================
         [HttpPut("confirm")]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -150,9 +131,7 @@ namespace BioAlga.Backend.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
         }
 
-        // =========================
         // PUT: api/pedidos/status
-        // =========================
         [HttpPut("status")]
         [ProducesResponseType(typeof(PedidoDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -170,15 +149,12 @@ namespace BioAlga.Backend.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
         }
 
-        // =========================
-        // DELETE: api/pedidos/{id}
-        // Solo permite eliminar pedidos en BORRADOR
-        // =========================
+        // DELETE: api/pedidos/{id}  (Borrador o Cancelado)
         [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Delete([FromRoute] int id)
+        public async Task<IActionResult> Eliminar([FromRoute] int id)
         {
             try
             {
