@@ -6,7 +6,6 @@ import { Observable } from 'rxjs';
 import {
   EstatusPedido,
   PedidoDto,
-  PedidoListItemDto,
   PedidoListResponse,
   PedidoQueryParams,
   PedidoCreateRequest,
@@ -17,17 +16,13 @@ import {
   PedidoCambioEstatusRequest,
 } from '../models/pedido-dtos.model';
 
-// import { environment } from '../../environments/environment';
-
+// Si usas environments/proxy, cambia esta línea por environment.apiUrl o '/api/pedidos'
 @Injectable({ providedIn: 'root' })
 export class PedidosService {
   private http = inject(HttpClient);
-  // Recomendado: usar environment/proxy de Angular:
-  // private baseUrl = `${environment.apiUrl}/api/pedidos`;
-  // o con proxy.conf.json → '/api/pedidos'
   private baseUrl = 'http://localhost:5241/api/pedidos';
 
-  /** Opcional: header con el usuario que ejecuta la acción */
+  /** Header opcional para enviar el usuario (X-User-Id) */
   private withUser(userId?: number) {
     if (userId == null) return {};
     return { headers: new HttpHeaders({ 'X-User-Id': String(userId) }) };
@@ -38,35 +33,26 @@ export class PedidosService {
   buscar(params: PedidoQueryParams): Observable<PedidoListResponse> {
     let hp = new HttpParams();
 
-    if (params.q && params.q.trim())     hp = hp.set('q', params.q.trim());
-    if (params.estatus)                  hp = hp.set('estatus', String(params.estatus));
-    if (params.page)                     hp = hp.set('page', String(params.page));
-    if (params.pageSize)                 hp = hp.set('pageSize', String(params.pageSize));
-    if (params.sortBy)                   hp = hp.set('sortBy', params.sortBy);
-    if (params.sortDir)                  hp = hp.set('sortDir', params.sortDir);
+    if (params.q && params.q.trim()) hp = hp.set('q', params.q.trim());
+    if (params.estatus)              hp = hp.set('estatus', String(params.estatus)); // Enum serializado como string
+    if (params.page)                 hp = hp.set('page', String(params.page));
+    if (params.pageSize)             hp = hp.set('pageSize', String(params.pageSize));
+    if (params.sortBy)               hp = hp.set('sortBy', params.sortBy);
+    if (params.sortDir)              hp = hp.set('sortDir', params.sortDir);
 
     return this.http.get<PedidoListResponse>(this.baseUrl, { params: hp });
   }
 
-  /** Atajo para listar solo Borradores */
+  /** Alias opcional si quieres llamarlo "buscarResumen" desde otros componentes */
+  buscarResumen(params: PedidoQueryParams) {
+    return this.buscar(params);
+  }
+
+  /** Helpers convenientes (opcionales) */
   buscarBorradores(page = 1, pageSize = 20, q = ''): Observable<PedidoListResponse> {
     return this.buscar({
       q,
       estatus: EstatusPedido.Borrador,
-      page,
-      pageSize,
-      sortBy: 'FechaPedido',
-      sortDir: 'DESC',
-    });
-  }
-
-  /** Atajo para listar Confirmados+ (excluye borradores) */
-  buscarActivos(page = 1, pageSize = 20, q = ''): Observable<PedidoListResponse> {
-    // Si quieres filtrar múltiples estatus en backend, expándelo allí;
-    // aquí dejamos un helper simple (front puede pedir por cada estatus).
-    return this.buscar({
-      q,
-      estatus: EstatusPedido.Confirmado,
       page,
       pageSize,
       sortBy: 'FechaPedido',
@@ -116,7 +102,7 @@ export class PedidosService {
     return this.http.put<PedidoDto>(`${this.baseUrl}/status`, body, this.withUser(userId));
   }
 
-  // ===================== ELIMINAR (solo Borrador) =====================
+  // ===================== ELIMINAR (Borrador o Cancelado) =====================
   /** DELETE /api/pedidos/{id} */
   eliminar(idPedido: number, userId?: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${idPedido}`, this.withUser(userId));
