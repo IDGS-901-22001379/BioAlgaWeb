@@ -48,7 +48,7 @@ export class PedidosPageComponent implements OnInit {
   private comprasApi = inject(ComprasService);
   private invApi = inject(InventarioService);
 
-  // Exponer enum (útil si lo usas en el HTML)
+  // Exponer enum en el template
   public EstatusPedidoEnum = EstatusPedido;
 
   cargando = signal(false);
@@ -427,22 +427,35 @@ export class PedidosPageComponent implements OnInit {
   }
   cerrarBorradoresModal(): void { this.showBorradoresModal.set(false); }
 
+  // Atajos para abrir modal filtrado por estatus operativo
+  verConfirmados(): void    { this.openModalEstatus(EstatusPedido.Confirmado); }
+  verPreparacion(): void    { this.openModalEstatus(EstatusPedido.Preparacion); }
+  verListo(): void          { this.openModalEstatus(EstatusPedido.Listo); }
+  verFacturado(): void      { this.openModalEstatus(EstatusPedido.Facturado); }
+  verEntregado(): void      { this.openModalEstatus(EstatusPedido.Entregado); }
+  verCancelado(): void      { this.openModalEstatus(EstatusPedido.Cancelado); }
+
+  private openModalEstatus(est: EstatusPedido): void {
+    this.filtroEstatus.set(est);
+    this.filtroTexto.set('');
+    this.page.set(1);
+    this.showPedidosModal.set(true);
+    this.cargarPedidos();
+  }
+
   onBuscarPedidosChange(q: string): void {
     this.filtroTexto.set((q || '').trim());
     this.page.set(1);
     this.cargarPedidos();
   }
 
-  // Versión que recibe el enum o 'TODOS'
   onChangeFiltroEstatus(est: EstatusPedido | 'TODOS'): void {
     this.filtroEstatus.set(est);
     this.page.set(1);
     this.cargarPedidos();
   }
-  // Wrapper para HTML (string → enum/'TODOS')
   onChangeFiltroEstatusStr(val: string): void {
-    const est: EstatusPedido | 'TODOS' =
-      val === 'TODOS' ? 'TODOS' : (val as EstatusPedido);
+    const est: EstatusPedido | 'TODOS' = (val === 'TODOS') ? 'TODOS' : (val as EstatusPedido);
     this.onChangeFiltroEstatus(est);
   }
 
@@ -452,7 +465,7 @@ export class PedidosPageComponent implements OnInit {
     this.cargarPedidos();
   }
 
-  // Hacerla pública porque la llamas desde el template
+  // Pública para usarla en el template
   cargarPedidos(): void {
     const est = this.filtroEstatus();
     const params: PedidoQueryParams = {
@@ -540,12 +553,81 @@ export class PedidosPageComponent implements OnInit {
       });
   }
 
+  // ======== NUEVAS: flujo operativo después de Confirmado ========
+  /** Confirmado → Preparación */
+  prepararPedido(p: PedidoListItemDto): void {
+    if (p.estatus !== EstatusPedido.Confirmado) { return; }
+    this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: EstatusPedido.Preparacion })
+      .subscribe({
+        next: () => { Swal.fire('OK', 'Pasó a Preparación', 'success'); this.cargarPedidos(); },
+        error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo actualizar', 'error')
+      });
+  }
+
+  /** Preparación → Listo */
+  marcarListo(p: PedidoListItemDto): void {
+    if (p.estatus !== EstatusPedido.Preparacion) { return; }
+    this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: EstatusPedido.Listo })
+      .subscribe({
+        next: () => { Swal.fire('OK', 'Pedido listo', 'success'); this.cargarPedidos(); },
+        error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo actualizar', 'error')
+      });
+  }
+
+  /** Listo → Facturado (pagado) */
+  facturarPedido(p: PedidoListItemDto): void {
+    if (p.estatus !== EstatusPedido.Listo) { return; }
+    Swal.fire({ title: `¿Marcar #${p.idPedido} como Facturado?`, icon: 'question', showCancelButton: true })
+      .then(r => {
+        if (!r.isConfirmed) return;
+        this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: EstatusPedido.Facturado })
+          .subscribe({
+            next: () => { Swal.fire('OK', 'Pedido facturado', 'success'); this.cargarPedidos(); },
+            error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo facturar', 'error')
+          });
+      });
+  }
+
+  /** Facturado → Entregado */
+  marcarEntregado(p: PedidoListItemDto): void {
+    if (p.estatus !== EstatusPedido.Facturado) { return; }
+    this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: EstatusPedido.Entregado })
+      .subscribe({
+        next: () => { Swal.fire('OK', 'Pedido entregado', 'success'); this.cargarPedidos(); },
+        error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo marcar como entregado', 'error')
+      });
+  }
+
+  /** Eliminar definitivamente un cancelado */
+  eliminarCancelado(p: PedidoListItemDto): void {
+    if (p.estatus !== EstatusPedido.Cancelado) { return; }
+    Swal.fire({ title: `Eliminar cancelado #${p.idPedido}?`, text: 'Esta acción no se puede deshacer', icon: 'warning', showCancelButton: true })
+      .then(r => {
+        if (!r.isConfirmed) return;
+        this.pedidosApi.eliminar(p.idPedido).subscribe({
+          next: () => { Swal.fire('OK', 'Pedido eliminado', 'success'); this.cargarPedidos(); },
+          error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo eliminar', 'error')
+        });
+      });
+  }
+
+  /** Helper genérico (lo puedes seguir usando en botones sueltos) */
   avanzarEstatus(p: PedidoListItemDto, nuevo: EstatusPedido): void {
     this.pedidosApi.cambiarEstatus({ idPedido: p.idPedido, nuevoEstatus: nuevo })
       .subscribe({
         next: () => { Swal.fire('OK', 'Estatus actualizado', 'success'); this.cargarPedidos(); },
         error: (e) => Swal.fire('Error', this.extractErr(e) || 'No se pudo actualizar', 'error')
       });
+  }
+
+  // ===== Helpers de UI =====
+  /** Sugerencia para mostrar/ocultar acciones en cada fila */
+  puedeIrA(p: PedidoListItemDto, destino: EstatusPedido): boolean {
+    const a = p.estatus;
+    return (a === EstatusPedido.Confirmado   && destino === EstatusPedido.Preparacion)
+        || (a === EstatusPedido.Preparacion  && destino === EstatusPedido.Listo)
+        || (a === EstatusPedido.Listo        && destino === EstatusPedido.Facturado)
+        || (a === EstatusPedido.Facturado    && destino === EstatusPedido.Entregado);
   }
 
   // Badge helper para la UI
@@ -563,8 +645,17 @@ export class PedidosPageComponent implements OnInit {
   }
 
   estatusText(est: EstatusPedido): string {
-    // Es enum de strings; devolver el valor es suficiente
-    return est;
+    // Etiquetas bonitas (acentos)
+    const map: Record<string,string> = {
+      [EstatusPedido.Borrador]:    'Borrador',
+      [EstatusPedido.Confirmado]:  'Confirmado',
+      [EstatusPedido.Preparacion]: 'Preparación',
+      [EstatusPedido.Listo]:       'Listo',
+      [EstatusPedido.Facturado]:   'Facturado',
+      [EstatusPedido.Entregado]:   'Entregado',
+      [EstatusPedido.Cancelado]:   'Cancelado',
+    };
+    return map[est] ?? est;
   }
 
   // ================== Util ==================

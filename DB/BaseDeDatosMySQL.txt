@@ -1,8 +1,10 @@
 -- ======================================================
 -- BASE DE DATOS: bioalga  (POS Tecnología / IoT)
--- VERSION: 2.1
+-- VERSION: 2.2
 -- FECHA: 2025-08-20
--- NOTA: Ajuste en CLIENTES: apellido_paterno y apellido_materno.
+-- NOTAS:
+--  - ENUM pedidos.estatus usa 'Preparacion' (SIN acento) para coincidir con C#.
+--  - Orden de creación de vistas corregido (ventas_por_dia -> devoluciones_por_dia -> ventas_netas_por_dia).
 -- ======================================================
 
 DROP DATABASE IF EXISTS bioalga;
@@ -169,7 +171,7 @@ WHERE
   );
 
 -- ==========================
--- 8) CLIENTES (con apellidos paterno/materno)
+-- 8) CLIENTES
 -- ==========================
 CREATE TABLE clientes (
   id_cliente INT AUTO_INCREMENT PRIMARY KEY,
@@ -265,7 +267,7 @@ CREATE TABLE detalle_venta (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 12) PEDIDOS (grandes cantidades)
+-- 12) PEDIDOS
 -- ==========================
 CREATE TABLE pedidos (
   id_pedido INT AUTO_INCREMENT PRIMARY KEY,
@@ -276,7 +278,8 @@ CREATE TABLE pedidos (
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
-  estatus ENUM('Borrador','Confirmado','Preparación','Listo','Facturado','Entregado','Cancelado') DEFAULT 'Borrador',
+  -- IMPORTANTE: sin acento
+  estatus ENUM('Borrador','Confirmado','Preparacion','Listo','Facturado','Entregado','Cancelado') DEFAULT 'Borrador',
   id_usuario INT NOT NULL,
   notas TEXT,
   CONSTRAINT fk_pedido_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id_cliente),
@@ -294,20 +297,18 @@ CREATE TABLE detalle_pedido (
   CONSTRAINT fk_dpedido_prod   FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-
 -- ==========================
--- DEVOLUCIONES (cabecera + detalle)
+-- 13) DEVOLUCIONES
 -- ==========================
-
 CREATE TABLE IF NOT EXISTS devoluciones (
   id_devolucion INT AUTO_INCREMENT PRIMARY KEY,
   fecha_devolucion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  id_usuario INT NOT NULL,               -- quién registró la devolución
-  usuario_nombre VARCHAR(120) NOT NULL,  -- snapshot del nombre para reporting
-  motivo VARCHAR(300) NOT NULL,          -- requerido
-  regresa_inventario TINYINT(1) NOT NULL DEFAULT 1,  -- 1=Sí, 0=No
-  total_devuelto DECIMAL(12,2) NOT NULL DEFAULT 0,   -- total que se resta a "ventas del día"
-  referencia_venta VARCHAR(50) NULL,     -- opcional: número de ticket si se tiene
+  id_usuario INT NOT NULL,
+  usuario_nombre VARCHAR(120) NOT NULL,
+  motivo VARCHAR(300) NOT NULL,
+  regresa_inventario TINYINT(1) NOT NULL DEFAULT 1,
+  total_devuelto DECIMAL(12,2) NOT NULL DEFAULT 0,
+  referencia_venta VARCHAR(50) NULL,
   notas TEXT NULL,
   CONSTRAINT fk_devol_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
   INDEX idx_devol_fecha (fecha_devolucion),
@@ -318,11 +319,9 @@ CREATE TABLE IF NOT EXISTS detalle_devolucion (
   id_detalle INT AUTO_INCREMENT PRIMARY KEY,
   id_devolucion INT NOT NULL,
   id_producto INT NOT NULL,
-  producto_nombre VARCHAR(150) NOT NULL,     -- snapshot del nombre para reportes
+  producto_nombre VARCHAR(150) NOT NULL,
   cantidad INT NOT NULL,
-  -- Para tu caso "precio anotado a mano": guardamos el total de la línea.
-  -- Si después quieres unitario, lo añadimos; por ahora, solo total exacto.
-  importe_linea_total DECIMAL(12,2) NOT NULL, 
+  importe_linea_total DECIMAL(12,2) NOT NULL,
   CONSTRAINT fk_dd_dev FOREIGN KEY (id_devolucion) REFERENCES devoluciones(id_devolucion) ON DELETE CASCADE,
   CONSTRAINT fk_dd_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
   INDEX idx_dd_devolucion (id_devolucion),
@@ -330,18 +329,21 @@ CREATE TABLE IF NOT EXISTS detalle_devolucion (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- VISTAS para reporteo
+-- 14) VISTAS (orden correcto)
 -- ==========================
+DROP VIEW IF EXISTS vw_ventas_por_dia;
+CREATE VIEW vw_ventas_por_dia AS
+SELECT DATE(fecha_venta) AS dia, SUM(total) AS total
+FROM ventas
+WHERE estatus='Pagada'
+GROUP BY DATE(fecha_venta);
 
--- 1) Devoluciones por día (para consultas rápidas)
 DROP VIEW IF EXISTS vw_devoluciones_por_dia;
 CREATE VIEW vw_devoluciones_por_dia AS
 SELECT DATE(d.fecha_devolucion) AS dia, SUM(d.total_devuelto) AS total_devoluciones
 FROM devoluciones d
 GROUP BY DATE(d.fecha_devolucion);
 
--- 2) Ventas netas por día = Ventas - Devoluciones
--- (No tocamos tu vw_ventas_por_dia existente; agregamos una nueva vista)
 DROP VIEW IF EXISTS vw_ventas_netas_por_dia;
 CREATE VIEW vw_ventas_netas_por_dia AS
 SELECT
@@ -352,17 +354,6 @@ SELECT
 FROM vw_ventas_por_dia v
 LEFT JOIN vw_devoluciones_por_dia d
   ON d.dia = v.dia;
-
---   --------------------------------------------------------------------------------------
--- ==========================
--- 13) VISTAS PARA DASHBOARD
--- ==========================
-DROP VIEW IF EXISTS vw_ventas_por_dia;
-CREATE VIEW vw_ventas_por_dia AS
-SELECT DATE(fecha_venta) AS dia, SUM(total) AS total
-FROM ventas
-WHERE estatus='Pagada'
-GROUP BY DATE(fecha_venta);
 
 DROP VIEW IF EXISTS vw_top_productos;
 CREATE VIEW vw_top_productos AS
@@ -385,15 +376,18 @@ WHERE v.estatus='Pagada'
 GROUP BY v.cliente_id, nombre_completo
 ORDER BY total_gastado DESC;
 
-
 DROP VIEW IF EXISTS vw_stock_actual;
 CREATE VIEW vw_stock_actual AS
-SELECT id_producto, SUM(CASE WHEN tipo_movimiento='Entrada' THEN cantidad 
-                             WHEN tipo_movimiento='Salida'  THEN -cantidad 
-                             ELSE 0 END) AS stock
+SELECT id_producto,
+       SUM(CASE WHEN tipo_movimiento='Entrada' THEN cantidad
+                WHEN tipo_movimiento='Salida'  THEN -cantidad
+                ELSE 0 END) AS stock
 FROM inventario_movimientos
 GROUP BY id_producto;
 
+-- ==========================
+-- 15) FUNCIÓN: precio vigente
+-- ==========================
 DROP FUNCTION IF EXISTS fn_precio_vigente;
 DELIMITER $$
 CREATE FUNCTION fn_precio_vigente(p_id_producto INT, p_tipo ENUM('Normal','Mayoreo','Descuento','Especial'))
@@ -413,20 +407,19 @@ BEGIN
 END$$
 DELIMITER ;
 
-
+-- ==========================
+-- 16) FK adicionales en devoluciones
+-- ==========================
 ALTER TABLE devoluciones
   ADD COLUMN venta_id INT NULL,
   ADD INDEX idx_devol_venta (venta_id),
   ADD CONSTRAINT fk_devol_venta
     FOREIGN KEY (venta_id) REFERENCES ventas(id_venta);
-    
-    ALTER TABLE detalle_devolucion
+
+ALTER TABLE detalle_devolucion
   ADD COLUMN id_detalle_venta INT NULL,
   ADD INDEX idx_dd_detventa (id_detalle_venta),
   ADD CONSTRAINT fk_dd_detventa
     FOREIGN KEY (id_detalle_venta) REFERENCES detalle_venta(id_detalle);
 
-
 SET FOREIGN_KEY_CHECKS = 1;
-
-
