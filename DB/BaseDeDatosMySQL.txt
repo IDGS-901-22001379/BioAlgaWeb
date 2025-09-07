@@ -1,10 +1,7 @@
 -- ======================================================
 -- BASE DE DATOS: bioalga  (POS Tecnología / IoT)
--- VERSION: 2.2
--- FECHA: 2025-08-20
--- NOTAS:
---  - ENUM pedidos.estatus usa 'Preparacion' (SIN acento) para coincidir con C#.
---  - Orden de creación de vistas corregido (ventas_por_dia -> devoluciones_por_dia -> ventas_netas_por_dia).
+-- VERSION: 2.2 (con vistas para Dashboard)
+-- FECHA: 2025-09-06
 -- ======================================================
 
 DROP DATABASE IF EXISTS bioalga;
@@ -235,7 +232,7 @@ CREATE TABLE inventario_movimientos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 11) VENTAS (POS)
+-- 11) VENTAS
 -- ==========================
 CREATE TABLE ventas (
   id_venta INT AUTO_INCREMENT PRIMARY KEY,
@@ -278,8 +275,7 @@ CREATE TABLE pedidos (
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   impuestos DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
-  -- IMPORTANTE: sin acento
-  estatus ENUM('Borrador','Confirmado','Preparacion','Listo','Facturado','Entregado','Cancelado') DEFAULT 'Borrador',
+  estatus ENUM('Borrador','Confirmado','Preparación','Listo','Facturado','Entregado','Cancelado') DEFAULT 'Borrador',
   id_usuario INT NOT NULL,
   notas TEXT,
   CONSTRAINT fk_pedido_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id_cliente),
@@ -300,7 +296,7 @@ CREATE TABLE detalle_pedido (
 -- ==========================
 -- 13) DEVOLUCIONES
 -- ==========================
-CREATE TABLE IF NOT EXISTS devoluciones (
+CREATE TABLE devoluciones (
   id_devolucion INT AUTO_INCREMENT PRIMARY KEY,
   fecha_devolucion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   id_usuario INT NOT NULL,
@@ -310,27 +306,42 @@ CREATE TABLE IF NOT EXISTS devoluciones (
   total_devuelto DECIMAL(12,2) NOT NULL DEFAULT 0,
   referencia_venta VARCHAR(50) NULL,
   notas TEXT NULL,
+  venta_id INT NULL,
   CONSTRAINT fk_devol_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+  CONSTRAINT fk_devol_venta FOREIGN KEY (venta_id) REFERENCES ventas(id_venta),
   INDEX idx_devol_fecha (fecha_devolucion),
-  INDEX idx_devol_usuario (id_usuario)
+  INDEX idx_devol_usuario (id_usuario),
+  INDEX idx_devol_venta (venta_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS detalle_devolucion (
+CREATE TABLE detalle_devolucion (
   id_detalle INT AUTO_INCREMENT PRIMARY KEY,
   id_devolucion INT NOT NULL,
   id_producto INT NOT NULL,
   producto_nombre VARCHAR(150) NOT NULL,
   cantidad INT NOT NULL,
   importe_linea_total DECIMAL(12,2) NOT NULL,
+  id_detalle_venta INT NULL,
   CONSTRAINT fk_dd_dev FOREIGN KEY (id_devolucion) REFERENCES devoluciones(id_devolucion) ON DELETE CASCADE,
   CONSTRAINT fk_dd_prod FOREIGN KEY (id_producto) REFERENCES productos(id_producto),
+  CONSTRAINT fk_dd_detventa FOREIGN KEY (id_detalle_venta) REFERENCES detalle_venta(id_detalle),
   INDEX idx_dd_devolucion (id_devolucion),
-  INDEX idx_dd_producto (id_producto)
+  INDEX idx_dd_producto (id_producto),
+  INDEX idx_dd_detventa (id_detalle_venta)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================
--- 14) VISTAS (orden correcto)
+-- 14) VISTAS PARA REPORTEO Y DASHBOARD
 -- ==========================
+
+-- Devoluciones por día
+DROP VIEW IF EXISTS vw_devoluciones_por_dia;
+CREATE VIEW vw_devoluciones_por_dia AS
+SELECT DATE(d.fecha_devolucion) AS dia, SUM(d.total_devuelto) AS total_devoluciones
+FROM devoluciones d
+GROUP BY DATE(d.fecha_devolucion);
+
+-- Ventas por día
 DROP VIEW IF EXISTS vw_ventas_por_dia;
 CREATE VIEW vw_ventas_por_dia AS
 SELECT DATE(fecha_venta) AS dia, SUM(total) AS total
@@ -338,12 +349,7 @@ FROM ventas
 WHERE estatus='Pagada'
 GROUP BY DATE(fecha_venta);
 
-DROP VIEW IF EXISTS vw_devoluciones_por_dia;
-CREATE VIEW vw_devoluciones_por_dia AS
-SELECT DATE(d.fecha_devolucion) AS dia, SUM(d.total_devuelto) AS total_devoluciones
-FROM devoluciones d
-GROUP BY DATE(d.fecha_devolucion);
-
+-- Ventas netas por día = Ventas - Devoluciones
 DROP VIEW IF EXISTS vw_ventas_netas_por_dia;
 CREATE VIEW vw_ventas_netas_por_dia AS
 SELECT
@@ -355,6 +361,7 @@ FROM vw_ventas_por_dia v
 LEFT JOIN vw_devoluciones_por_dia d
   ON d.dia = v.dia;
 
+-- Top productos (unidades)
 DROP VIEW IF EXISTS vw_top_productos;
 CREATE VIEW vw_top_productos AS
 SELECT dv.id_producto, p.nombre, SUM(dv.cantidad) AS total_unidades
@@ -364,6 +371,18 @@ JOIN ventas v  ON v.id_venta = dv.id_venta AND v.estatus='Pagada'
 GROUP BY dv.id_producto, p.nombre
 ORDER BY total_unidades DESC;
 
+-- Top productos (ingreso)
+CREATE OR REPLACE VIEW vw_top_productos_ingreso AS
+SELECT dv.id_producto, p.nombre,
+       SUM(dv.cantidad) AS total_unidades,
+       SUM((dv.precio_unitario - dv.descuento_unitario + dv.iva_unitario) * dv.cantidad) AS ingreso_total
+FROM detalle_venta dv
+JOIN productos p ON p.id_producto = dv.id_producto
+JOIN ventas v  ON v.id_venta = dv.id_venta AND v.estatus='Pagada'
+GROUP BY dv.id_producto, p.nombre
+ORDER BY ingreso_total DESC;
+
+-- Top clientes
 DROP VIEW IF EXISTS vw_top_clientes;
 CREATE VIEW vw_top_clientes AS
 SELECT
@@ -376,18 +395,45 @@ WHERE v.estatus='Pagada'
 GROUP BY v.cliente_id, nombre_completo
 ORDER BY total_gastado DESC;
 
+-- Ventas por usuario
+CREATE OR REPLACE VIEW vw_ventas_por_usuario AS
+SELECT u.id_usuario, e.nombre, e.apellido_paterno,
+       SUM(v.total) AS total_vendido, COUNT(v.id_venta) AS num_ventas
+FROM ventas v
+JOIN usuarios u ON u.id_usuario = v.id_usuario
+LEFT JOIN empleados e ON e.id_empleado = u.id_empleado
+WHERE v.estatus='Pagada'
+GROUP BY u.id_usuario, e.nombre, e.apellido_paterno
+ORDER BY total_vendido DESC;
+
+-- Devoluciones por usuario
+CREATE OR REPLACE VIEW vw_devoluciones_por_usuario AS
+SELECT d.id_usuario, u.nombre_usuario,
+       COUNT(d.id_devolucion) AS num_devoluciones,
+       SUM(d.total_devuelto) AS total_devuelto
+FROM devoluciones d
+JOIN usuarios u ON u.id_usuario = d.id_usuario
+GROUP BY d.id_usuario, u.nombre_usuario;
+
+-- Compras por proveedor
+CREATE OR REPLACE VIEW vw_compras_por_proveedor AS
+SELECT p.id_proveedor, p.nombre_empresa,
+       SUM(c.total) AS total_comprado, COUNT(c.id_compra) AS num_compras
+FROM compras c
+LEFT JOIN proveedores p ON p.id_proveedor = c.proveedor_id
+GROUP BY p.id_proveedor, p.nombre_empresa
+ORDER BY total_comprado DESC;
+
+-- Stock actual
 DROP VIEW IF EXISTS vw_stock_actual;
 CREATE VIEW vw_stock_actual AS
-SELECT id_producto,
-       SUM(CASE WHEN tipo_movimiento='Entrada' THEN cantidad
-                WHEN tipo_movimiento='Salida'  THEN -cantidad
-                ELSE 0 END) AS stock
+SELECT id_producto, SUM(CASE WHEN tipo_movimiento='Entrada' THEN cantidad 
+                             WHEN tipo_movimiento='Salida'  THEN -cantidad 
+                             ELSE 0 END) AS stock
 FROM inventario_movimientos
 GROUP BY id_producto;
 
--- ==========================
--- 15) FUNCIÓN: precio vigente
--- ==========================
+-- Función precio vigente
 DROP FUNCTION IF EXISTS fn_precio_vigente;
 DELIMITER $$
 CREATE FUNCTION fn_precio_vigente(p_id_producto INT, p_tipo ENUM('Normal','Mayoreo','Descuento','Especial'))
@@ -406,20 +452,5 @@ BEGIN
   RETURN v;
 END$$
 DELIMITER ;
-
--- ==========================
--- 16) FK adicionales en devoluciones
--- ==========================
-ALTER TABLE devoluciones
-  ADD COLUMN venta_id INT NULL,
-  ADD INDEX idx_devol_venta (venta_id),
-  ADD CONSTRAINT fk_devol_venta
-    FOREIGN KEY (venta_id) REFERENCES ventas(id_venta);
-
-ALTER TABLE detalle_devolucion
-  ADD COLUMN id_detalle_venta INT NULL,
-  ADD INDEX idx_dd_detventa (id_detalle_venta),
-  ADD CONSTRAINT fk_dd_detventa
-    FOREIGN KEY (id_detalle_venta) REFERENCES detalle_venta(id_detalle);
 
 SET FOREIGN_KEY_CHECKS = 1;
