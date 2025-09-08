@@ -1,6 +1,6 @@
-namespace BioAlga.Backend.Models.Dashboard
+namespace BioAlga.Backend.Dtos.Dashboard
 {
-    public class VentasPorUsuario
+    public class VentasPorUsuarioDto
     {
         public int IdUsuario { get; set; }
         public string Nombre { get; set; } = string.Empty;
