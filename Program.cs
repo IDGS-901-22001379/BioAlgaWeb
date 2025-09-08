@@ -108,8 +108,11 @@ builder.Services.AddScoped<ICajaService, CajaService>();
 // Devoluciones
 builder.Services.AddScoped<IDevolucionService, DevolucionService>();
 
-// ======== Pedidos (NUEVO) ========
+// Pedidos
 builder.Services.AddScoped<IPedidoService, PedidoService>();
+
+// Dashboard
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // ===============================
 // CORS (Angular)
