@@ -1,6 +1,7 @@
 // Data/ApplicationDbContext.cs
 using BioAlga.Backend.Models;
 using Microsoft.EntityFrameworkCore;
+using BioAlga.Backend.Models.Dashboard;
 using BioAlga.Backend.Models.Enums; // EstatusPedido, etc.
 
 namespace BioAlga.Backend.Data
@@ -41,6 +42,15 @@ namespace BioAlga.Backend.Data
         // ======= PEDIDOS (NUEVO) =======
         public DbSet<Pedido> Pedidos => Set<Pedido>();
         public DbSet<DetallePedido> DetallePedidos => Set<DetallePedido>();
+
+
+        // ======= DASHBOARD (vistas SQL) =======
+        public DbSet<VentasResumen> VentasResumen => Set<VentasResumen>();
+        public DbSet<TopProducto> TopProductos => Set<TopProducto>();
+        public DbSet<TopCliente> TopClientes => Set<TopCliente>();
+        public DbSet<VentasPorUsuario> VentasPorUsuarios => Set<VentasPorUsuario>();
+        public DbSet<DevolucionesPorUsuario> DevolucionesPorUsuarios => Set<DevolucionesPorUsuario>();
+        public DbSet<ComprasPorProveedor> ComprasPorProveedores => Set<ComprasPorProveedor>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -539,7 +549,44 @@ namespace BioAlga.Backend.Data
                     .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_dpedido_prod");
             });
+            // ============================================
+            // DASHBOARD - mapeo de vistas (Keyless)
+            // ============================================
+            modelBuilder.Entity<VentasResumen>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("vw_ventas_resumen");
+            });
 
+            modelBuilder.Entity<TopProducto>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("vw_top_productos_ingreso"); // aquí puedes usar también vw_top_productos si quieres ambos
+            });
+
+            modelBuilder.Entity<TopCliente>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("vw_top_clientes");
+            });
+
+            modelBuilder.Entity<VentasPorUsuario>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("vw_ventas_por_usuario");
+            });
+
+            modelBuilder.Entity<DevolucionesPorUsuario>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("vw_devoluciones_por_usuario");
+            });
+
+            modelBuilder.Entity<ComprasPorProveedor>(e =>
+            {
+                e.HasNoKey();
+                e.ToView("vw_compras_por_proveedor");
+            });
             // (Si luego mapeas vistas, usa entidades keyless con .ToView(...))
         }
     }
