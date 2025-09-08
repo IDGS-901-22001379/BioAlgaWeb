@@ -4,6 +4,9 @@ import { authGuard } from './guards/auth.guard';
 // Páginas (component/standalone)
 import { LoginComponent } from './pages/login/login.component';
 import { InicioComponent } from './pages/inicio/inicio.component';
+
+// Módulos principales
+import { DashboardPageComponent } from './pages/dashboard/dashboard';
 import { UsuariosPageComponent } from './pages/usuarios/usuarios';
 import { ClientesPageComponent } from './pages/clientes/clientes';
 import { EmpleadosPageComponent } from './pages/empleados/empleados';
@@ -20,32 +23,36 @@ import { VentasPageComponent } from './pages/ventas/ventas';
 // ✅ Devoluciones
 import { DevolucionesPageComponent } from './pages/devoluciones/devoluciones';
 
-// ✅ ⬅️ NUEVO: Pedidos
+// ✅ Pedidos
 import { PedidosPageComponent } from './pages/pedidos/pedidos';
 
 export const routes: Routes = [
-  // Ruta por defecto → login
+  // Ruta raíz → login
   { path: '', pathMatch: 'full', redirectTo: 'login' },
 
   // Login (público)
   { path: 'login', component: LoginComponent },
 
-  // Área privada protegida
+  // Área privada protegida con sidebar
   {
     path: 'inicio',
     component: InicioComponent,
     canActivate: [authGuard],
     children: [
-      // Redirección por defecto dentro de inicio
-      { path: '', pathMatch: 'full', redirectTo: 'clientes' },
+      // Redirección por defecto dentro de inicio → Dashboard
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
+      // Dashboard
+      { path: 'dashboard', component: DashboardPageComponent },
+
+      // Usuarios / gestión
       { path: 'usuarios', component: UsuariosPageComponent },
       { path: 'clientes', component: ClientesPageComponent },
       { path: 'empleados', component: EmpleadosPageComponent },
       { path: 'proveedores', component: ProveedoresPageComponent },
       { path: 'productos', component: ProductosPageComponent },
 
-      // ✅ Módulos existentes
+      // Compras + Inventario
       { path: 'compras', component: ComprasPageComponent },
       {
         path: 'inventario',
@@ -54,13 +61,17 @@ export const routes: Routes = [
           { path: 'stock', component: StockPageComponent },
         ]
       },
+
+      // Ventas (POS)
       { path: 'ventas', component: VentasPageComponent },
-      { path: 'pos', redirectTo: 'ventas' }, // alias cómodo
+      { path: 'pos', redirectTo: 'ventas' }, // alias
+
+      // Devoluciones
       { path: 'devoluciones', component: DevolucionesPageComponent },
 
-      // ✅ ⬅️ NUEVO: Pedidos
+      // Pedidos
       { path: 'pedidos', component: PedidosPageComponent },
-      // (opcional) alias: { path: 'ordenes', redirectTo: 'pedidos' },
+      // { path: 'ordenes', redirectTo: 'pedidos' }, // alias opcional
     ]
   },
 

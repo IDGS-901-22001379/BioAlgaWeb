@@ -1,1 +1,247 @@
-<p>dashboard works!</p>
+<div class="container-fluid py-3 dash-bg">
+  <!-- Header + Filtros -->
+  <div class="d-flex align-items-end flex-wrap gap-3 mb-3">
+    <div>
+      <h4 class="mb-0">Dashboard</h4>
+      <small class="text-muted">Ventas, productos, usuarios y proveedores</small>
+    </div>
+
+    <div class="ms-auto d-flex align-items-end gap-2">
+      <div class="form-group">
+        <label class="form-label">Desde</label>
+        <input class="form-control" type="date" [formControl]="form.controls['from']" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hasta</label>
+        <input class="form-control" type="date" [formControl]="form.controls['to']" />
+      </div>
+      <div class="form-group" style="width:120px">
+        <label class="form-label">Top N</label>
+        <input class="form-control" type="number" min="1" [formControl]="form.controls['top']" />
+      </div>
+
+      <div class="btn-group ms-2">
+        <button class="btn btn-outline-secondary" (click)="hoyBtn()">Hoy</button>
+        <button class="btn btn-outline-secondary" (click)="ultimos7()">7 días</button>
+        <button class="btn btn-outline-secondary" (click)="ultimos30()">30 días</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="cargando()" class="alert alert-info py-2 glass">
+    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+    Cargando datos...
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi shadow-sm border-0">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">Ventas HOY</div>
+              <div class="h4 mb-0 emph">{{ totalHoy() | currency:'MXN':'symbol-narrow':'1.2-2' }}</div>
+            </div>
+            <i class="bi bi-cash-coin fs-3 text-success shadow-glow"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi shadow-sm border-0">
+        <div class="card-body">
+          <div class="text-muted small">Semana actual</div>
+          <div class="h4 mb-0 emph">{{ totalSemana() | currency:'MXN':'symbol-narrow':'1.2-2' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi shadow-sm border-0">
+        <div class="card-body">
+          <div class="text-muted small">Mes actual</div>
+          <div class="h4 mb-0 emph">{{ totalMes() | currency:'MXN':'symbol-narrow':'1.2-2' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card kpi shadow-sm border-0">
+        <div class="card-body">
+          <div class="text-muted small">Año actual</div>
+          <div class="d-flex justify-content-between align-items-end">
+            <div>
+              <div class="h4 mb-0 emph">{{ totalAnio() | currency:'MXN':'symbol-narrow':'1.2-2' }}</div>
+              <div class="small text-muted">Tickets: {{ totalTickets() }}</div>
+            </div>
+            <i class="bi bi-graph-up-arrow fs-4 text-warning"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grillas -->
+  <div class="row g-3 mt-1">
+    <!-- Top productos -->
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white">
+          <b>Top Productos</b>
+          <small class="text-muted ms-2">(por ingreso / unidades)</small>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:56px">#</th>
+                  <th>Producto</th>
+                  <th class="text-end">Unidades</th>
+                  <th class="text-end">Ingreso</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of topProductos(); let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ p.nombre }}</td>
+                  <td class="text-end">{{ p.totalUnidades }}</td>
+                  <td class="text-end">{{ p.ingresoTotal | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="!topProductos().length">
+                  <td colspan="4" class="text-center text-muted py-3">Sin datos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top clientes -->
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white"><b>Top Clientes</b></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:56px">#</th>
+                  <th>Cliente</th>
+                  <th class="text-end">Total gastado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let c of topClientes(); let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ c.nombreCompleto }}</td>
+                  <td class="text-end">{{ c.totalGastado | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="!topClientes().length">
+                  <td colspan="3" class="text-center text-muted py-3">Sin datos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ventas por usuario -->
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white"><b>Ventas por usuario</b></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Usuario</th>
+                  <th class="text-end">Ventas</th>
+                  <th class="text-end">Tickets</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let u of ventasUsuarios()">
+                  <td>{{ u.nombre }} {{ u.apellidoPaterno }}</td>
+                  <td class="text-end">{{ u.totalVendido | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                  <td class="text-end">{{ u.numVentas }}</td>
+                </tr>
+                <tr *ngIf="!ventasUsuarios().length">
+                  <td colspan="3" class="text-center text-muted py-3">Sin datos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Devoluciones por usuario -->
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white"><b>Devoluciones por usuario</b></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Usuario</th>
+                  <th class="text-end"># Dev.</th>
+                  <th class="text-end">Total devuelto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let d of devolucionesUsers()">
+                  <td>{{ d.nombreUsuario }}</td>
+                  <td class="text-end">{{ d.numDevoluciones }}</td>
+                  <td class="text-end">{{ d.totalDevuelto | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="!devolucionesUsers().length">
+                  <td colspan="3" class="text-center text-muted py-3">Sin datos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compras por proveedor -->
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-white"><b>Compras por proveedor</b></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:56px">#</th>
+                  <th>Proveedor</th>
+                  <th class="text-end">Total comprado</th>
+                  <th class="text-end"># Compras</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of comprasProv(); let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ p.nombreEmpresa }}</td>
+                  <td class="text-end">{{ p.totalComprado | currency:'MXN':'symbol-narrow':'1.2-2' }}</td>
+                  <td class="text-end">{{ p.numCompras }}</td>
+                </tr>
+                <tr *ngIf="!comprasProv().length">
+                  <td colspan="4" class="text-center text-muted py-3">Sin datos</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

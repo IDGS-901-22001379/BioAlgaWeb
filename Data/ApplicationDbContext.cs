@@ -315,31 +315,59 @@ namespace BioAlga.Backend.Data
             // ============================================
             modelBuilder.Entity<Venta>(e =>
             {
+                e.ToTable("ventas");
+
                 e.HasKey(x => x.IdVenta);
-                e.Property(x => x.MetodoPago).HasConversion<string>();
-                e.Property(x => x.Estatus).HasConversion<string>();
+                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+
+                e.Property(x => x.ClienteId).HasColumnName("cliente_id");
+                e.Property(x => x.FechaVenta).HasColumnName("fecha_venta");
+                e.Property(x => x.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
+                e.Property(x => x.EfectivoRecibido).HasColumnName("efectivo_recibido").HasColumnType("decimal(12,2)");
+                e.Property(x => x.Cambio).HasColumnName("cambio").HasColumnType("decimal(12,2)");
+                e.Property(x => x.MetodoPago).HasColumnName("metodo_pago").HasConversion<string>();
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");   // ← ¡clave!
+                e.Property(x => x.Estatus).HasColumnName("estatus").HasConversion<string>();
 
                 e.HasOne(v => v.Cliente).WithMany()
                     .HasForeignKey(v => v.ClienteId)
+                    .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_venta_cliente");
 
                 e.HasOne(v => v.Usuario).WithMany()
                     .HasForeignKey(v => v.IdUsuario)
+                    .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_venta_usuario");
 
                 e.HasMany(v => v.Detalles).WithOne(d => d.Venta!)
                     .HasForeignKey(d => d.IdVenta)
                     .OnDelete(DeleteBehavior.Cascade)
                     .HasConstraintName("fk_dventa_venta");
+
+                e.HasIndex(x => x.FechaVenta).HasDatabaseName("idx_venta_fecha");
             });
 
             modelBuilder.Entity<DetalleVenta>(e =>
             {
+                e.ToTable("detalle_venta");
+
                 e.HasKey(x => x.IdDetalle);
+                e.Property(x => x.IdDetalle).HasColumnName("id_detalle");
+                e.Property(x => x.IdVenta).HasColumnName("id_venta");
+                e.Property(x => x.IdProducto).HasColumnName("id_producto");
+                e.Property(x => x.Cantidad).HasColumnName("cantidad");
+                e.Property(x => x.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)");
+                e.Property(x => x.DescuentoUnitario).HasColumnName("descuento_unitario").HasColumnType("decimal(10,2)");
+                e.Property(x => x.IvaUnitario).HasColumnName("iva_unitario").HasColumnType("decimal(10,2)");
+
                 e.HasOne(d => d.Producto).WithMany()
                     .HasForeignKey(d => d.IdProducto)
+                    .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_dventa_prod");
             });
+
 
             // ============================================
             // DEVOLUCIONES
