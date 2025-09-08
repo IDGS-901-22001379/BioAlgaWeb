@@ -315,59 +315,31 @@ namespace BioAlga.Backend.Data
             // ============================================
             modelBuilder.Entity<Venta>(e =>
             {
-                e.ToTable("ventas");
-
                 e.HasKey(x => x.IdVenta);
-                e.Property(x => x.IdVenta).HasColumnName("id_venta");
-
-                e.Property(x => x.ClienteId).HasColumnName("cliente_id");
-                e.Property(x => x.FechaVenta).HasColumnName("fecha_venta");
-                e.Property(x => x.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Impuestos).HasColumnName("impuestos").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Total).HasColumnName("total").HasColumnType("decimal(12,2)");
-                e.Property(x => x.EfectivoRecibido).HasColumnName("efectivo_recibido").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Cambio).HasColumnName("cambio").HasColumnType("decimal(12,2)");
-                e.Property(x => x.MetodoPago).HasColumnName("metodo_pago").HasConversion<string>();
-                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");   // ← ¡clave!
-                e.Property(x => x.Estatus).HasColumnName("estatus").HasConversion<string>();
+                e.Property(x => x.MetodoPago).HasConversion<string>();
+                e.Property(x => x.Estatus).HasConversion<string>();
 
                 e.HasOne(v => v.Cliente).WithMany()
                     .HasForeignKey(v => v.ClienteId)
-                    .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_venta_cliente");
 
                 e.HasOne(v => v.Usuario).WithMany()
                     .HasForeignKey(v => v.IdUsuario)
-                    .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_venta_usuario");
 
                 e.HasMany(v => v.Detalles).WithOne(d => d.Venta!)
                     .HasForeignKey(d => d.IdVenta)
                     .OnDelete(DeleteBehavior.Cascade)
                     .HasConstraintName("fk_dventa_venta");
-
-                e.HasIndex(x => x.FechaVenta).HasDatabaseName("idx_venta_fecha");
             });
 
             modelBuilder.Entity<DetalleVenta>(e =>
             {
-                e.ToTable("detalle_venta");
-
                 e.HasKey(x => x.IdDetalle);
-                e.Property(x => x.IdDetalle).HasColumnName("id_detalle");
-                e.Property(x => x.IdVenta).HasColumnName("id_venta");
-                e.Property(x => x.IdProducto).HasColumnName("id_producto");
-                e.Property(x => x.Cantidad).HasColumnName("cantidad");
-                e.Property(x => x.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("decimal(10,2)");
-                e.Property(x => x.DescuentoUnitario).HasColumnName("descuento_unitario").HasColumnType("decimal(10,2)");
-                e.Property(x => x.IvaUnitario).HasColumnName("iva_unitario").HasColumnType("decimal(10,2)");
-
                 e.HasOne(d => d.Producto).WithMany()
                     .HasForeignKey(d => d.IdProducto)
-                    .OnDelete(DeleteBehavior.NoAction)
                     .HasConstraintName("fk_dventa_prod");
             });
-
 
             // ============================================
             // DEVOLUCIONES
@@ -580,41 +552,78 @@ namespace BioAlga.Backend.Data
             // ============================================
             // DASHBOARD - mapeo de vistas (Keyless)
             // ============================================
+
             modelBuilder.Entity<VentasResumen>(e =>
             {
                 e.HasNoKey();
                 e.ToView("vw_ventas_resumen");
+
+                e.Property(p => p.Dia).HasColumnName("dia");
+                e.Property(p => p.Anio).HasColumnName("anio");
+                e.Property(p => p.Mes).HasColumnName("mes");
+                e.Property(p => p.Semana).HasColumnName("semana");
+                e.Property(p => p.TotalVentas).HasColumnName("total_ventas");
+                e.Property(p => p.Subtotal).HasColumnName("subtotal");
+                e.Property(p => p.Impuestos).HasColumnName("impuestos");
+                e.Property(p => p.NumTickets).HasColumnName("num_tickets");
             });
 
             modelBuilder.Entity<TopProducto>(e =>
             {
                 e.HasNoKey();
-                e.ToView("vw_top_productos_ingreso"); // aquí puedes usar también vw_top_productos si quieres ambos
+                e.ToView("vw_top_productos_ingreso"); // o la vista que uses
+
+                e.Property(p => p.IdProducto).HasColumnName("id_producto");
+                e.Property(p => p.Nombre).HasColumnName("nombre");
+                e.Property(p => p.TotalUnidades).HasColumnName("total_unidades");
+                e.Property(p => p.IngresoTotal).HasColumnName("ingreso_total");
             });
 
             modelBuilder.Entity<TopCliente>(e =>
             {
                 e.HasNoKey();
                 e.ToView("vw_top_clientes");
+
+                e.Property(p => p.IdCliente).HasColumnName("id_cliente");
+                e.Property(p => p.NombreCompleto).HasColumnName("nombre_completo");
+                e.Property(p => p.TotalGastado).HasColumnName("total_gastado");
             });
 
             modelBuilder.Entity<VentasPorUsuario>(e =>
             {
                 e.HasNoKey();
                 e.ToView("vw_ventas_por_usuario");
+
+                e.Property(p => p.IdUsuario).HasColumnName("id_usuario");
+                e.Property(p => p.Nombre).HasColumnName("nombre");
+                e.Property(p => p.ApellidoPaterno).HasColumnName("apellido_paterno");
+                e.Property(p => p.TotalVendido).HasColumnName("total_vendido");
+                e.Property(p => p.NumVentas).HasColumnName("num_ventas");
             });
 
             modelBuilder.Entity<DevolucionesPorUsuario>(e =>
             {
                 e.HasNoKey();
                 e.ToView("vw_devoluciones_por_usuario");
+
+                e.Property(p => p.IdUsuario).HasColumnName("id_usuario");
+                e.Property(p => p.NombreUsuario).HasColumnName("nombre_usuario");
+                e.Property(p => p.NumDevoluciones).HasColumnName("num_devoluciones");
+                e.Property(p => p.TotalDevuelto).HasColumnName("total_devuelto");
             });
 
             modelBuilder.Entity<ComprasPorProveedor>(e =>
             {
                 e.HasNoKey();
                 e.ToView("vw_compras_por_proveedor");
+
+                e.Property(p => p.IdProveedor).HasColumnName("id_proveedor");
+                e.Property(p => p.NombreEmpresa).HasColumnName("nombre_empresa");
+                e.Property(p => p.TotalComprado).HasColumnName("total_comprado");
+                e.Property(p => p.NumCompras).HasColumnName("num_compras");
             });
+
+
             // (Si luego mapeas vistas, usa entidades keyless con .ToView(...))
         }
     }
