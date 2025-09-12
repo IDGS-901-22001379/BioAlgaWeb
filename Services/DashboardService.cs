@@ -1,5 +1,3 @@
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using BioAlga.Backend.Data;
 using BioAlga.Backend.Dtos.Dashboard;
 using BioAlga.Backend.Services.Interfaces;
@@ -10,12 +8,10 @@ namespace BioAlga.Backend.Services
     public class DashboardService : IDashboardService
     {
         private readonly ApplicationDbContext _context;
-        private readonly IMapper _mapper;
 
-        public DashboardService(ApplicationDbContext context, IMapper mapper)
+        public DashboardService(ApplicationDbContext context)
         {
             _context = context;
-            _mapper = mapper;
         }
 
         // ======= Ventas resumen (día, semana, mes, año) =======
@@ -23,7 +19,17 @@ namespace BioAlga.Backend.Services
         {
             return await _context.VentasResumen
                 .AsNoTracking()
-                .ProjectTo<VentasResumenDto>(_mapper.ConfigurationProvider)
+                .Select(v => new VentasResumenDto
+                {
+                    Dia = v.Dia,
+                    Anio = v.Anio,
+                    Mes = v.Mes,
+                    Semana = v.Semana,
+                    TotalVentas = v.TotalVentas,
+                    Subtotal = v.Subtotal,
+                    Impuestos = v.Impuestos,
+                    NumTickets = v.NumTickets
+                })
                 .ToListAsync();
         }
 
@@ -32,7 +38,13 @@ namespace BioAlga.Backend.Services
         {
             return await _context.TopProductos
                 .AsNoTracking()
-                .ProjectTo<TopProductoDto>(_mapper.ConfigurationProvider)
+                .Select(p => new TopProductoDto
+                {
+                    IdProducto = p.IdProducto,
+                    Nombre = p.Nombre,
+                    TotalUnidades = p.TotalUnidades,
+                    IngresoTotal = p.IngresoTotal
+                })
                 .ToListAsync();
         }
 
@@ -41,7 +53,12 @@ namespace BioAlga.Backend.Services
         {
             return await _context.TopClientes
                 .AsNoTracking()
-                .ProjectTo<TopClienteDto>(_mapper.ConfigurationProvider)
+                .Select(c => new TopClienteDto
+                {
+                    IdCliente = c.IdCliente,
+                    NombreCompleto = c.NombreCompleto,
+                    TotalGastado = c.TotalGastado
+                })
                 .ToListAsync();
         }
 
@@ -50,7 +67,14 @@ namespace BioAlga.Backend.Services
         {
             return await _context.VentasPorUsuarios
                 .AsNoTracking()
-                .ProjectTo<VentasPorUsuarioDto>(_mapper.ConfigurationProvider)
+                .Select(u => new VentasPorUsuarioDto
+                {
+                    IdUsuario = u.IdUsuario,
+                    Nombre = u.Nombre,
+                    ApellidoPaterno = u.ApellidoPaterno,
+                    TotalVendido = u.TotalVendido,
+                    NumVentas = u.NumVentas
+                })
                 .ToListAsync();
         }
 
@@ -59,7 +83,13 @@ namespace BioAlga.Backend.Services
         {
             return await _context.DevolucionesPorUsuarios
                 .AsNoTracking()
-                .ProjectTo<DevolucionesPorUsuarioDto>(_mapper.ConfigurationProvider)
+                .Select(d => new DevolucionesPorUsuarioDto
+                {
+                    IdUsuario = d.IdUsuario,
+                    NombreUsuario = d.NombreUsuario,
+                    NumDevoluciones = d.NumDevoluciones,
+                    TotalDevuelto = d.TotalDevuelto
+                })
                 .ToListAsync();
         }
 
@@ -68,7 +98,13 @@ namespace BioAlga.Backend.Services
         {
             return await _context.ComprasPorProveedores
                 .AsNoTracking()
-                .ProjectTo<ComprasPorProveedorDto>(_mapper.ConfigurationProvider)
+                .Select(p => new ComprasPorProveedorDto
+                {
+                    IdProveedor = p.IdProveedor,
+                    NombreEmpresa = p.NombreEmpresa,
+                    TotalComprado = p.TotalComprado,
+                    NumCompras = p.NumCompras
+                })
                 .ToListAsync();
         }
     }

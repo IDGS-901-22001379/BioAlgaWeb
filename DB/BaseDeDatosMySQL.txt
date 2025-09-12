@@ -4,6 +4,7 @@
 -- FECHA: 2025-09-06
 -- ======================================================
 
+
 DROP DATABASE IF EXISTS bioalga;
 CREATE DATABASE bioalga CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE bioalga;
@@ -452,5 +453,69 @@ BEGIN
   RETURN v;
 END$$
 DELIMITER ;
+
+DROP VIEW IF EXISTS vw_ventas_resumen;
+CREATE VIEW vw_ventas_resumen AS
+SELECT 
+    DATE(v.fecha_venta) AS dia,
+    YEAR(v.fecha_venta) AS anio,
+    MONTH(v.fecha_venta) AS mes,
+    WEEK(v.fecha_venta, 1) AS semana,
+    SUM(v.total) AS total_ventas,
+    SUM(v.subtotal) AS subtotal,
+    SUM(v.impuestos) AS impuestos,
+    COUNT(v.id_venta) AS num_tickets
+FROM ventas v
+WHERE v.estatus = 'Pagada'
+GROUP BY DATE(v.fecha_venta), YEAR(v.fecha_venta), MONTH(v.fecha_venta), WEEK(v.fecha_venta, 1);
+
+
+
+
+
+-- ---- nuevas viasta 
+
+
+CREATE OR REPLACE VIEW vw_top_clientes AS
+SELECT
+  COALESCE(v.cliente_id, 0) AS cliente_id,
+  COALESCE(CONCAT_WS(' ', c.nombre, c.apellido_paterno, c.apellido_materno), '(Sin cliente)') AS nombre_completo,
+  COALESCE(SUM(v.total), 0) AS total_gastado
+FROM ventas v
+LEFT JOIN clientes c ON c.id_cliente = v.cliente_id
+WHERE v.estatus='Pagada'
+GROUP BY COALESCE(v.cliente_id, 0), COALESCE(CONCAT_WS(' ', c.nombre, c.apellido_paterno, c.apellido_materno), '(Sin cliente)')
+ORDER BY total_gastado DESC;
+
+
+CREATE OR REPLACE VIEW vw_compras_por_proveedor AS
+SELECT
+  COALESCE(p.id_proveedor, 0) AS id_proveedor,
+  COALESCE(p.nombre_empresa, '(Sin proveedor)') AS nombre_empresa,
+  COALESCE(SUM(c.total), 0) AS total_comprado,
+  COUNT(c.id_compra) AS num_compras
+FROM compras c
+LEFT JOIN proveedores p ON p.id_proveedor = c.proveedor_id
+GROUP BY COALESCE(p.id_proveedor, 0), COALESCE(p.nombre_empresa, '(Sin proveedor)')
+ORDER BY total_comprado DESC;
+
+
+CREATE OR REPLACE VIEW vw_ventas_resumen AS
+SELECT 
+    DATE(v.fecha_venta)           AS dia,
+    YEAR(v.fecha_venta)           AS anio,
+    MONTH(v.fecha_venta)          AS mes,
+    WEEK(v.fecha_venta, 1)        AS semana,
+    COALESCE(SUM(v.total), 0)     AS total_ventas,
+    COALESCE(SUM(v.subtotal), 0)  AS subtotal,
+    COALESCE(SUM(v.impuestos), 0) AS impuestos,
+    COUNT(v.id_venta)             AS num_tickets
+FROM ventas v
+WHERE v.estatus = 'Pagada'
+GROUP BY DATE(v.fecha_venta), YEAR(v.fecha_venta), MONTH(v.fecha_venta), WEEK(v.fecha_venta, 1);
+
+
+
+
 
 SET FOREIGN_KEY_CHECKS = 1;
