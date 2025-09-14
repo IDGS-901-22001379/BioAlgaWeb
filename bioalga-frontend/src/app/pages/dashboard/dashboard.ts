@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   AfterViewInit,
+  OnDestroy,
   inject,
   signal,
   computed,
@@ -15,7 +16,6 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import Swal from 'sweetalert2';
-
 
 import { DashboardService } from '../../services/dashboard.service';
 import {
@@ -37,14 +37,13 @@ declare const Chart: any;
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './dashboard.html',
 })
-export class DashboardPageComponent implements OnInit, AfterViewInit {
+export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private fb = inject(FormBuilder);
   private api = inject(DashboardService);
   private renderEffect?: EffectRef;
 
   // Necesario para crear effect() en un contexto de inyección válido
   private injector = inject(EnvironmentInjector);
-  private stopRenderEffect?: () => void;
 
   // ========= Estado/UI =========
   cargando = signal(false);
@@ -111,25 +110,29 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-  this.viewReady = true;
+    this.viewReady = true;
 
-  // 2) crea el effect dentro de un injection context y GUÁRDALO
-  runInInjectionContext(this.injector, () => {
-    this.renderEffect = effect(() => {
-      this.ventasResumen();
-      this.topProductos();
-      this.topClientes();
-      this.ventasUsuarios();
-      this.devolucionesUsers();
-      this.comprasProv();
-
-      if (this.viewReady) queueMicrotask(() => this.renderAllCharts());
+    // re-render cuando cambian las señales
+    runInInjectionContext(this.injector, () => {
+      this.renderEffect = effect(() => {
+        this.ventasResumen();
+        this.topProductos();
+        this.topClientes();
+        this.ventasUsuarios();
+        this.devolucionesUsers();
+        this.comprasProv();
+        if (this.viewReady) queueMicrotask(() => this.renderAllCharts());
+      });
     });
-  });
 
-  queueMicrotask(() => this.renderAllCharts());
-}
+    queueMicrotask(() => this.renderAllCharts());
+  }
 
+  ngOnDestroy(): void {
+    // Limpia charts y efectos para evitar fugas
+    Object.keys(this.charts).forEach((k) => this.destroy(k));
+    this.renderEffect?.destroy?.();
+  }
 
   // ========= Carga de datos =========
   cargarTodo(): void {
@@ -156,7 +159,6 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
         this.ventasUsuarios.set(r.vus || []);
         this.devolucionesUsers.set(r.dus || []);
         this.comprasProv.set(r.cprov || []);
-
         if (this.viewReady) queueMicrotask(() => this.renderAllCharts());
       },
       error: (e) => {
@@ -193,16 +195,8 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
 
   private palette(n: number): string[] {
     const colors = [
-      '#4f46e5',
-      '#22c55e',
-      '#f59e0b',
-      '#ef4444',
-      '#06b6d4',
-      '#a855f7',
-      '#14b8a6',
-      '#f97316',
-      '#84cc16',
-      '#e11d48',
+      '#4f46e5', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4',
+      '#a855f7', '#14b8a6', '#f97316', '#84cc16', '#e11d48',
     ];
     return Array.from({ length: n }, (_, i) => colors[i % colors.length]);
   }
@@ -237,20 +231,19 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'line',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Ventas',
-            data: values,
-            fill: true,
-            tension: 0.35,
-            borderColor: '#4f46e5',
-            backgroundColor: 'rgba(79,70,229,.12)',
-            pointRadius: 2,
-          },
-        ],
+        datasets: [{
+          label: 'Ventas',
+          data: values,
+          fill: true,
+          tension: 0.35,
+          borderColor: '#4f46e5',
+          backgroundColor: 'rgba(79,70,229,.12)',
+          pointRadius: 2,
+        }],
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,          // 👈 clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -272,17 +265,17 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'bar',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Ingreso (MXN)',
-            data: values,
-            backgroundColor: this.palette(values.length),
-            borderRadius: 8,
-          },
-        ],
+        datasets: [{
+          label: 'Ingreso (MXN)',
+          data: values,
+          backgroundColor: this.palette(values.length),
+          borderRadius: 8,
+        }],
       },
       options: {
         indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,          // 👈 clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { x: { beginAtZero: true } },
       },
@@ -304,16 +297,16 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'bar',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Unidades',
-            data: values,
-            backgroundColor: this.palette(values.length),
-            borderRadius: 8,
-          },
-        ],
+        datasets: [{
+          label: 'Unidades',
+          data: values,
+          backgroundColor: this.palette(values.length),
+          borderRadius: 8,
+        }],
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,          // 👈 clave
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true } },
       },
@@ -335,16 +328,16 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'bar',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Total gastado (MXN)',
-            data: values,
-            backgroundColor: this.palette(values.length),
-            borderRadius: 8,
-          },
-        ],
+        datasets: [{
+          label: 'Total gastado (MXN)',
+          data: values,
+          backgroundColor: this.palette(values.length),
+          borderRadius: 8,
+        }],
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,          // 👈 clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -368,16 +361,16 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'bar',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Ventas por usuario (MXN)',
-            data: values,
-            backgroundColor: this.palette(values.length),
-            borderRadius: 8,
-          },
-        ],
+        datasets: [{
+          label: 'Ventas por usuario (MXN)',
+          data: values,
+          backgroundColor: this.palette(values.length),
+          borderRadius: 8,
+        }],
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,          // 👈 clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -399,16 +392,16 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'bar',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Total devuelto (MXN)',
-            data: values,
-            backgroundColor: this.palette(values.length),
-            borderRadius: 8,
-          },
-        ],
+        datasets: [{
+          label: 'Total devuelto (MXN)',
+          data: values,
+          backgroundColor: this.palette(values.length),
+          borderRadius: 8,
+        }],
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,          // 👈 clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -430,15 +423,15 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
       type: 'doughnut',
       data: {
         labels,
-        datasets: [
-          {
-            data: values,
-            backgroundColor: this.palette(values.length),
-            borderWidth: 1,
-          },
-        ],
+        datasets: [{
+          data: values,
+          backgroundColor: this.palette(values.length),
+          borderWidth: 1,
+        }],
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,          // 👈 clave para que no invada la pantalla
         plugins: { legend: { position: 'right' }, tooltip: this.moneyTooltip() },
         cutout: '55%',
       },
@@ -466,9 +459,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
     const dayNum = date.getUTCDay() || 7;
     date.setUTCDate(date.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    return Math.ceil(
-      (((date as any) - (yearStart as any)) / 86400000 + 1) / 7
-    );
+    return Math.ceil(((((date as any) - (yearStart as any)) / 86400000) + 1) / 7);
   }
 
   private resetAll(): void {
