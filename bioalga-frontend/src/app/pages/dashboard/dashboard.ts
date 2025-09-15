@@ -64,34 +64,76 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
   devolucionesUsers = signal<DevolucionesPorUsuario[]>([]);
   comprasProv = signal<ComprasPorProveedor[]>([]);
 
-  // ========= KPIs =========
+  // ========= Helpers de fecha seguros =========
+  /** 'YYYY-MM-DD' local */
+  private toISODateLocal(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  isoToday(): string { return this.toISODateLocal(new Date()); }
+  isoTodayMinus(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return this.toISODateLocal(d);
+  }
+  /** Suma días a 'YYYY-MM-DD' y devuelve 'YYYY-MM-DD' */
+  private addDaysISO(iso: string, days: number): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + days);
+    return this.toISODateLocal(dt);
+  }
+  /** Toma solo la parte de fecha (10 chars) para evitar TZ */
+  private dayKey(s?: string | null): string {
+    return (s ?? '').slice(0, 10);
+  }
+
+  // ========= KPIs (robustos a TZ y rangos) =========
   totalHoy = computed(() => {
-    const hoyISO = this.isoToday();
+    const hoyKey = this.isoToday();
     return this.ventasResumen()
-      .filter((v) => v.dia?.startsWith(hoyISO))
+      .filter(v => this.dayKey(v.dia) === hoyKey)
       .reduce((acc, v) => acc + (v.totalVentas ?? 0), 0);
   });
 
   totalSemana = computed(() => {
-    const anio = this.hoy.getFullYear();
-    const semana = this.isoWeekNumber(this.hoy);
+    const semanaHoy = this.isoWeekNumber(this.hoy);
+    const anioHoy = this.hoy.getFullYear();
     return this.ventasResumen()
-      .filter((v) => v.anio === anio && v.semana === semana)
+      .filter(v => {
+        const dk = this.dayKey(v.dia);
+        if (!dk) return false;
+        const [y, m, d] = dk.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        return this.isoWeekNumber(dt) === semanaHoy && dt.getFullYear() === anioHoy;
+      })
       .reduce((acc, v) => acc + (v.totalVentas ?? 0), 0);
   });
 
   totalMes = computed(() => {
-    const anio = this.hoy.getFullYear();
-    const mes = this.hoy.getMonth() + 1;
+    const Y = this.hoy.getFullYear();
+    const M = this.hoy.getMonth() + 1;
     return this.ventasResumen()
-      .filter((v) => v.anio === anio && v.mes === mes)
+      .filter(v => {
+        const dk = this.dayKey(v.dia);
+        if (!dk) return false;
+        const [y, m] = dk.split('-').map(Number);
+        return y === Y && m === M;
+      })
       .reduce((acc, v) => acc + (v.totalVentas ?? 0), 0);
   });
 
   totalAnio = computed(() => {
-    const anio = this.hoy.getFullYear();
+    const Y = this.hoy.getFullYear();
     return this.ventasResumen()
-      .filter((v) => v.anio === anio)
+      .filter(v => {
+        const dk = this.dayKey(v.dia);
+        if (!dk) return false;
+        const [y] = dk.split('-').map(Number);
+        return y === Y;
+      })
       .reduce((acc, v) => acc + (v.totalVentas ?? 0), 0);
   });
 
@@ -136,9 +178,13 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // ========= Carga de datos =========
   cargarTodo(): void {
+    // Si el backend usa 'to' exclusivo, mandamos mañana para incluir HOY completo
+    const toValue = this.form.value.to ?? undefined;
+    const toPlus = toValue ? this.addDaysISO(toValue, 1) : undefined;
+
     const filters: DashboardFilters = {
       from: this.form.value.from ?? undefined,
-      to: this.form.value.to ?? undefined,
+      to: toPlus, // 👈 usar mañana
       top: this.form.value.top ?? undefined,
     };
 
@@ -221,7 +267,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
     const data = [...this.ventasResumen()].sort((a, b) =>
       (a.dia || '').localeCompare(b.dia || '')
     );
-    const labels = data.length ? data.map((d) => (d.dia || '').slice(5)) : ['Sin datos'];
+    const labels = data.length ? data.map((d) => this.dayKey(d.dia).slice(5)) : ['Sin datos'];
     const values = data.length ? data.map((d) => d.totalVentas ?? 0) : [0];
 
     const ctx = this.ctx(id);
@@ -243,7 +289,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave
+        maintainAspectRatio: false,          // clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -275,7 +321,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       options: {
         indexAxis: 'y',
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave
+        maintainAspectRatio: false,          // clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { x: { beginAtZero: true } },
       },
@@ -306,7 +352,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave
+        maintainAspectRatio: false,          // clave
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true } },
       },
@@ -337,7 +383,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave
+        maintainAspectRatio: false,          // clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -370,7 +416,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave
+        maintainAspectRatio: false,          // clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -401,7 +447,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave
+        maintainAspectRatio: false,          // clave
         plugins: { legend: { display: false }, tooltip: this.moneyTooltip() },
         scales: { y: { beginAtZero: true } },
       },
@@ -431,7 +477,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,          // 👈 clave para que no invada la pantalla
+        maintainAspectRatio: false,          // clave para que no invada la pantalla
         plugins: { legend: { position: 'right' }, tooltip: this.moneyTooltip() },
         cutout: '55%',
       },
@@ -439,21 +485,6 @@ export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   // ========= Helpers =========
-  isoToday(): string {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}-${dd}`;
-  }
-
-  isoTodayMinus(days: number): string {
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}-${dd}`;
-  }
-
   private isoWeekNumber(d: Date): number {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const dayNum = date.getUTCDay() || 7;
