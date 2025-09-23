@@ -1,87 +1,147 @@
-🌱 BioAlgaWeb
+🛒 BioAlgaWeb – Sistema de Punto de Venta
+📌 Descripción
 
-BioAlgaWeb es un sistema integral para la gestión y monitoreo de biorreactores de microalgas, combinando un backend en ASP.NET Core y un frontend en Angular.
-El objetivo es automatizar, controlar y registrar datos en tiempo real para la producción y venta de microalgas y sus componentes.
+BioAlgaWeb es un sistema de Punto de Venta (POS) desarrollado como proyecto académico/profesional para la gestión de una tienda.
+Incluye administración completa de usuarios, empleados, clientes, proveedores, productos, compras, ventas, devoluciones, inventario y reportes, además de un dashboard interactivo con métricas clave.
 
-📂 Módulos principales
-🔐 Autenticación y Seguridad
+El sistema está diseñado para ser modular, seguro y escalable, con soporte multi–rol y trazabilidad mediante auditoría y bitácora.
 
-🔑 Login y Logout
+🚀 Funcionalidades principales
 
-👤 Gestión de roles y permisos
+🔐 Seguridad: login con contraseñas cifradas, bloqueo por intentos fallidos, roles y permisos por módulo.
 
-🚪 Control de acceso por tipo de usuario
+👥 Empleados: registro, inactivación ligada a usuarios, historial y reportes por actividad.
 
-🧑‍💼 Usuarios
+🧑‍🤝‍🧑 Clientes: CRUD, tipos de cliente (Normal, Mayoreo, Especial, Descuento) que determinan el precio aplicado en ventas.
 
-📝 Registro y edición de usuarios
+📦 Productos: catálogo con SKU único, búsqueda por nombre/código de barras, tipos y categorías, validación de precios vigentes.
 
-🎯 Asignación de roles
+💲 Precios: gestión de precios multi–tier (Normal, Mayoreo, Especial, Descuento) con historial de vigencia.
 
-✅ Activación / ❌ Inactivación de cuentas
+🛍️ Compras: registro de compras, proveedores, costos históricos y aumento automático de inventario.
 
-👷 Empleados
+📊 Inventario: control exclusivo mediante movimientos (Entrada, Salida, Ajuste, Devolución), kardex y auditoría.
 
-🗂 Registro y administración de empleados
+💳 Ventas POS: carrito de compras, múltiples métodos de pago, generación de tickets, descuentos controlados por rol.
 
-📌 Control de estatus laboral
+🔄 Devoluciones y cancelaciones: reversión parcial o total de ventas con impacto en inventario.
 
-🛒 Clientes
+💵 Caja y cortes: apertura de caja, ingresos/egresos, cortes por turno y diferencias.
 
-📋 Gestión de clientes
+📑 Pedidos: órdenes en grandes cantidades, reservas de stock y entregas parciales.
 
-📜 Historial de compras
+📈 Dashboard: KPIs de ventas, top clientes y productos, compras por proveedor, alertas de stock mínimo.
 
-🏭 Proveedores
+📝 Bitácora: auditoría completa de operaciones (logins, cambios de precios, ventas, ajustes, etc.).
 
-📝 Registro y control de proveedores
+📤 Importación/Exportación: carga inicial de productos/clientes/proveedores vía CSV, exportes a Excel/PDF.
 
-📦 Gestión de insumos
+🧑‍💻 Tecnologías utilizadas
 
-📦 Productos
+Frontend: Angular + TypeScript, Bootstrap 5, Chart.js
 
-📚 Catálogo de productos (microalgas, biorreactores, componentes)
+Backend: ASP.NET Core 8 (C#) + Entity Framework Core
 
-📊 Control de stock e inventario
+Base de datos: MySQL (tablas, vistas, procedimientos almacenados)
 
-📑 Pedidos y Ventas
+Herramientas: Swagger, Postman, Git/GitHub
 
-📝 Registro de pedidos
+Arquitectura: MVC, CQRS, Microservicios (intro)
 
-💳 Procesamiento de ventas
+Metodología: Scrum + prácticas DevOps básicas
 
-🧾 Facturación
+📊 Dashboard y KPIs
 
-🛍 Compras
+Ventas por día, semana, mes, año
 
-🛠 Control de compras de insumos y materiales
+Top productos más vendidos
 
-🤝 Relación con proveedores
+Top clientes por monto de compra
 
-🌡 Monitoreo Ambiental
+Compras por proveedor
 
-📈 Lectura en tiempo real de sensores (temperatura, pH, humedad)
+Rotación de inventario y alertas de stock mínimo
 
-📊 Gráficas y registros históricos
+📦 Instalación y ejecución
 
-🚨 Sistema de alertas configurables
+Clonar el repositorio:
 
-⚙️ Control de Sistemas
+git clone https://github.com/IDGS-901-22001379/BioAlgaWeb.git
 
-🔄 Gestión de agitación
 
-💧 Control de bomba de agua
+Configurar la base de datos en MySQL con los scripts incluidos (/database).
 
-⏳ Programación de operaciones automáticas
+Actualizar la cadena de conexión en appsettings.json.
 
-🔔 Notificaciones
+Ejecutar backend:
 
-🚨 Alertas por condiciones fuera de rango
+dotnet run
 
-📲 Notificaciones push, correo y sonido
 
-📊 Dashboard
+Levantar frontend Angular:
 
-📌 Resumen visual de producción, ventas y estado de biorreactores
+ng serve -o
 
-📉 Indicadores clave de rendimiento
+👥 Roles de usuario
+
+👨‍💼 Administrador: acceso completo a todo el sistema.
+
+📊 Gerencia: reportes avanzados, control de precios, cancelaciones fuera de día.
+
+💳 Cajero/Vendedor: ventas, devoluciones parciales, tickets, descuentos limitados.
+
+🛒 Compras: registro de proveedores y confirmación de compras.
+
+📦 Inventario: ajustes, reservas, mermas y conteos de stock.
+
+📚 Contabilidad (opcional): acceso a reportes de compras y ventas.
+
+📸 Capturas
+
+## 📸 Capturas de pantalla  
+
+### 🔐 Login y Navegación  
+| Login | Menú principal | Formulario |
+|---|---|---|
+| ![Login](web/Frontend/login.png) | ![Menú](web/Frontend/menu.png) | ![Formulario](web/Frontend/formulario.png) |
+
+---
+
+### 📊 Dashboard  
+| Resumen general | Gráficas ventas | Top productos/clientes |
+|---|---|---|
+| ![Dashboard1](web/Frontend/dashboard1.png) | ![Dashboard2](web/Frontend/dashboard2.png) | ![Dashboard3](web/Frontend/dashboard3.png) |
+
+---
+
+### 📑 Pedidos  
+| Lista de pedidos | Registro de pedido | Detalles de pedido |
+|---|---|---|
+| ![Pedidos1](web/Frontend/pedidos1.png) | ![Pedidos2](web/Frontend/pedidos2.png) | ![Pedidos3](web/Frontend/pedidos3.png) |
+
+---
+
+### 💳 Ventas  
+| Punto de venta | Ticket generado | Listado de ventas |
+|---|---|---|
+| ![Ventas1](web/Frontend/ventas1.png) | ![Ventas2](web/Frontend/ventas2.png) | ![Ventas3](web/Frontend/ventas3.png) |
+
+---
+
+### 📦 Inventario  
+| Lista de inventario | Movimientos (Entradas/Salidas) |
+|---|---|
+| ![Inventario1](web/Frontend/inventario1.png) | ![Inventario2](web/Frontend/inventario2.png) |
+
+---
+
+### 🛒 Compras  
+| Lista de compras | Registro de compra | Detalles de compra |
+|---|---|---|
+| ![Compras1](web/Frontend/compras1.png) | ![Compras2](web/Frontend/compras2.png) | ![Compras3](web/Frontend/compras3.png) |
+
+
+📌 Autor
+
+👤 Yael López Mariano
+Desarrollador Full Stack – Proyecto BioAlgaWeb Punto de Venta
