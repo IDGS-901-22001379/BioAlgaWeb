@@ -1,1 +1,270 @@
-/* You can add global styles to this file, and also import other style files */
+/* =====================================================================
+   BioAlga - styles.css (global)
+   - Fondo temable (no afecta sidebar)
+   - Tokens por tema (texto/superficies/bordes/acento)
+   - Aplicación a tipografía, cards, forms, tablas, etc.
+   - Topbar translúcido
+   - Contenedores transparentes para que se vea el fondo
+   - UI del Customizer (botón flotante + panel lateral) también temable
+   ===================================================================== */
+
+/* -------------------- 1) Fondo global (NO sidebar) ------------------- */
+:root{
+  --app-bg: radial-gradient(1200px 600px at 70% 10%, #1b2770 0%, #0b1222 55%, #060b16 100%);
+}
+
+html, body{
+  min-height: 100%;
+  background: var(--app-bg) !important;
+  background-attachment: fixed;
+}
+
+/* Temas del FONDO */
+html[data-app-theme="blue"],  body[data-app-theme="blue"]{
+  --app-bg: radial-gradient(1200px 600px at 70% 10%, #1b2770 0%, #0b1222 55%, #060b16 100%);
+}
+html[data-app-theme="dark"],  body[data-app-theme="dark"]{
+  --app-bg: linear-gradient(180deg, #0b1222 0%, #0a0f1a 50%, #070b12 100%);
+}
+html[data-app-theme="light"], body[data-app-theme="light"]{
+  --app-bg: linear-gradient(180deg, #f7fafc 0%, #eef2f7 100%);
+}
+html[data-app-theme="teal"],  body[data-app-theme="teal"]{
+  --app-bg: radial-gradient(1100px 580px at 65% 8%, #035a67 0%, #012c33 55%, #001b20 100%);
+}
+
+/* Deja transparentes los wrappers que suelen tapar el fondo */
+app-root,
+.app, .app-main, main, .content, .page-wrapper, .container-fluid,
+.wrapper, #content, #main, .layout, section[role="main"]{
+  background: transparent !important;
+}
+
+/* -------------------- 2) Topbar translúcido -------------------------- */
+.navbar, .topbar, .header{
+  background-color: rgba(7,11,18,.65) !important; /* ajusta a gusto */
+  backdrop-filter: blur(6px);
+}
+
+/* -------------------- 3) TOKENS de color para el contenido ----------- */
+/* Defaults (tema claro) */
+body{
+  --app-text: #0f172a;     /* texto principal */
+  --app-muted: #64748b;    /* texto secundario */
+  --surface: #ffffff;      /* fondo cards/controles */
+  --surface-2: #f1f5f9;    /* headers/strips */
+  --border: #e2e8f0;       /* bordes sutiles */
+  --accent: #2563eb;       /* acento por defecto (claro) */
+}
+
+/* Azul oscuro */
+html[data-app-theme="blue"] body,
+body[data-app-theme="blue"]{
+  --app-text: #e2e8f0;
+  --app-muted: #94a3b8;
+  --surface: #0f172a;
+  --surface-2: #0b1222;
+  --border: #233047;
+  --accent: #60a5fa;
+}
+
+/* Oscuro */
+html[data-app-theme="dark"] body,
+body[data-app-theme="dark"]{
+  --app-text: #e5e7eb;
+  --app-muted: #9ca3af;
+  --surface: #0b1222;
+  --surface-2: #0a0f1a;
+  --border: #1f2937;
+  --accent: #93c5fd;
+}
+
+/* Claro */
+html[data-app-theme="light"] body,
+body[data-app-theme="light"]{
+  --app-text: #0f172a;
+  --app-muted: #64748b;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --accent: #2563eb;
+}
+
+/* Teal oscuro */
+html[data-app-theme="teal"] body,
+body[data-app-theme="teal"]{
+  --app-text: #e6fffb;
+  --app-muted: #9fd6d1;
+  --surface: #022229;
+  --surface-2: #011a1f;
+  --border: #08343b;
+  --accent: #27e1d3;
+}
+
+/* -------------------- 4) Aplicación a componentes (Bootstrap) -------- */
+/* Tipografía */
+body { color: var(--app-text); }
+h1,h2,h3,h4,h5,h6, p, label, .form-label { color: var(--app-text); }
+a { color: inherit; }
+.text-muted, .form-text, small, .breadcrumb, .breadcrumb-item { color: var(--app-muted) !important; }
+
+/* Cards, listas, modales, offcanvas, dropdowns, acordeones */
+.card, .list-group, .modal-content, .offcanvas, .dropdown-menu, .accordion-item {
+  background-color: var(--surface) !important;
+  color: var(--app-text);
+  border-color: var(--border) !important;
+}
+.card .card-header, .accordion-header, .table thead th {
+  background-color: var(--surface-2) !important;
+}
+
+/* Formularios */
+.form-control, .form-select, .input-group-text, .form-check-input{
+  background-color: var(--surface) !important;
+  color: var(--app-text) !important;
+  border-color: var(--border) !important;
+}
+.form-control::placeholder { color: var(--app-muted); opacity: .85; }
+.form-check-label { color: var(--app-text); }
+
+/* Tablas */
+.table { color: var(--app-text); background-color: var(--surface); }
+.table thead th { border-color: var(--border) !important; }
+.table tbody td, .table tbody th { border-color: var(--border) !important; }
+
+/* Nav-tabs / pills */
+.nav-tabs .nav-link{
+  color: var(--app-text);
+  border-color: var(--border);
+  background-color: var(--surface);
+}
+.nav-tabs .nav-link.active{
+  background-color: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Botones outline frecuentes en filtros */
+.btn-outline-secondary{
+  color: var(--app-text) !important;
+  border-color: var(--border) !important;
+  background: transparent;
+}
+.btn-outline-secondary:hover{
+  background: var(--surface-2) !important;
+}
+
+/* Paginación */
+.pagination .page-link{
+  color: var(--app-text);
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+.pagination .page-item.active .page-link{
+  background-color: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Badges y alertas suaves */
+.badge { color: var(--app-text); }
+.alert { color: var(--app-text); background-color: var(--surface-2); border-color: var(--border); }
+
+/* SVG / Bootstrap Icons heredan color */
+.bi, svg { color: currentColor; fill: currentColor; }
+
+/* Canvas de charts con fondo transparente para dejar ver el tema */
+canvas { background: transparent; }
+
+/* -------------------- 5) CUSTOMIZER UI (botón + panel + overlay) ---- */
+/* FAB flotante */
+.customize-fab{
+  position: fixed;
+  right: 18px;
+  bottom: 24px;
+  z-index: 1050;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  background: linear-gradient(135deg, #ff00cc 0%, #3333ff 100%);
+  color: #fff;
+}
+.customize-fab .bi{ font-size: 1rem; line-height: 1; }
+
+/* Panel lateral -> usa tokens del tema actual */
+.customizer{
+  position: fixed;
+  top: 0; right: -360px;
+  width: 360px; max-width: 90vw;
+  height: 100%;
+  background: var(--surface-2);
+  color: var(--app-text);
+  z-index: 1049;
+  box-shadow: -12px 0 28px rgba(0,0,0,.35);
+  transition: right .28s ease;
+  display: flex; flex-direction: column;
+}
+.customizer.open{ right: 0; }
+
+.customizer-header{
+  position: relative;
+  padding:16px;
+  border-bottom: 1px solid var(--border);
+}
+.customizer-header h5{ margin:0; font-weight:700; color: var(--app-text); }
+.customizer-header small{ color: var(--app-muted); }
+
+.customizer-close{
+  position:absolute; right:10px; top:10px;
+  background:transparent; border:0; color: var(--app-muted);
+  font-size:20px; cursor:pointer;
+}
+.customizer-close:hover{ color: var(--app-text); }
+
+.customizer-body{ padding:14px 16px 20px; overflow:auto; }
+.section-title{ font-size:.9rem; color: var(--app-text); opacity:.9; margin:10px 2px; }
+
+/* Tarjetas de tema -> temables */
+.theme-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.theme-tile{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px;
+  background: var(--surface);
+  color: var(--app-text);
+  cursor:pointer;
+  transition:transform .1s ease,border-color .2s ease,background .2s ease, box-shadow .2s ease;
+}
+.theme-tile:hover{ transform: translateY(-1px); }
+.theme-tile.active{
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.theme-swatch{
+  height:72px; border-radius:10px; margin-bottom:10px;
+  border:1px solid var(--border);
+}
+
+/* Overlay (más claro en tema claro para contraste) */
+.customizer-overlay{
+  position: fixed; inset: 0;
+  z-index: 1048;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+  background: color-mix(in srgb, #020617 60%, transparent);
+}
+html[data-app-theme="light"] .customizer-overlay,
+body[data-app-theme="light"] .customizer-overlay{
+  background: color-mix(in srgb, #0f172a 20%, transparent);
+}
+.customizer-overlay.show{ opacity:1; pointer-events:auto; }
+
+/* Responsive */
+@media (max-width:420px){ .theme-grid{ grid-template-columns:1fr; } }
+
+/* ===================================================================== */
