@@ -100,46 +100,45 @@ ng serve -o
 
 ## 📸 Capturas de pantalla  
 
-### 🔐 Login y Navegación  
-| Login | Menú principal | Formulario |
-|---|---|---|
-| ![Login](web/Frontend/login.png) | ![Menú](web/Frontend/menu.png) | ![Formulario](web/Frontend/formulario.png) |
-
----
-
 ### 📊 Dashboard  
-| Resumen general | Gráficas ventas | Top productos/clientes |
-|---|---|---|
-| ![Dashboard1](web/Frontend/dashboard1.png) | ![Dashboard2](web/Frontend/dashboard2.png) | ![Dashboard3](web/Frontend/dashboard3.png) |
+| Resumen general |
+|---|
+| ![Dashboard](DiseñoCapturas/dashboard.png) |
 
 ---
 
 ### 📑 Pedidos  
-| Lista de pedidos | Registro de pedido | Detalles de pedido |
-|---|---|---|
-| ![Pedidos1](web/Frontend/pedidos1.png) | ![Pedidos2](web/Frontend/pedidos2.png) | ![Pedidos3](web/Frontend/pedidos3.png) |
+| Lista de pedidos | Registro de pedido |
+|---|---|
+| ![ListaPedidos](DiseñoCapturas/ListaPedidos.png) | ![RegistroPedidos](DiseñoCapturas/RegistroPedidos.png) |
 
 ---
 
 ### 💳 Ventas  
-| Punto de venta | Ticket generado | Listado de ventas |
-|---|---|---|
-| ![Ventas1](web/Frontend/ventas1.png) | ![Ventas2](web/Frontend/ventas2.png) | ![Ventas3](web/Frontend/ventas3.png) |
-
----
-
-### 📦 Inventario  
-| Lista de inventario | Movimientos (Entradas/Salidas) |
-|---|---|
-| ![Inventario1](web/Frontend/inventario1.png) | ![Inventario2](web/Frontend/inventario2.png) |
+| Punto de venta |
+|---|
+| ![Ventas](DiseñoCapturas/Ventas.png) |
 
 ---
 
 ### 🛒 Compras  
-| Lista de compras | Registro de compra | Detalles de compra |
-|---|---|---|
-| ![Compras1](web/Frontend/compras1.png) | ![Compras2](web/Frontend/compras2.png) | ![Compras3](web/Frontend/compras3.png) |
+| Lista de compras |
+|---|
+| ![Compras](DiseñoCapturas/compras.png) |
 
+---
+
+### 👥 Usuarios  
+| CRUD de usuarios |
+|---|
+| ![CRUDUsuarios](DiseñoCapturas/CRUDusuarios.png) |
+
+---
+
+### 🔄 Devoluciones  
+| Módulo de devoluciones |
+|---|
+| ![Devoluciones](DiseñoCapturas/Devoluciones.png) |
 
 📌 Autor
 
