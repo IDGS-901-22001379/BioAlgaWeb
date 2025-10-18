@@ -1,27 +1,67 @@
-<div class="login-card">
-  <h2>BioAlga — Iniciar sesión</h2>
+<!-- Vista centrada con tarjeta y fondo oscuro, SIN líneas neón laterales -->
+<div class="login-scene">
+  <!-- Contenedor centrado -->
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1 class="title">Log In</h1>
 
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <label>
-      Usuario
-      <input type="text" formControlName="nombreUsuario" />
-    </label>
-    <div class="err" *ngIf="form.controls.nombreUsuario.touched && form.controls.nombreUsuario.invalid">
-      Ingresa un usuario válido (mín. 3 caracteres).
+      <!-- Botón Google (decorativo si aún no usas OAuth) -->
+      <button type="button" class="btn-google" aria-label="Log in with Google">
+        <img
+          src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+          alt=""
+        />
+        Log in with Google
+      </button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+        <label class="label">Username or Email</label>
+        <input
+          class="input"
+          type="text"
+          formControlName="nombreUsuario"
+          placeholder="yael.doe@gmail.com"
+        />
+        <div
+          class="err"
+          *ngIf="form.controls.nombreUsuario.touched && form.controls.nombreUsuario.invalid"
+        >
+          Ingresa un usuario válido (mín. 3 caracteres).
+        </div>
+
+        <label class="label">Password</label>
+        <input
+          class="input"
+          type="password"
+          formControlName="contrasena"
+          placeholder="********"
+        />
+        <div
+          class="err"
+          *ngIf="form.controls.contrasena.touched && form.controls.contrasena.invalid"
+        >
+          Ingresa una contraseña válida (mín. 6 caracteres).
+        </div>
+
+        <div class="row-between">
+          <label class="remember">
+            <input type="checkbox" /> Remember for 30 days
+          </label>
+          <a class="link" href="#">Forgot password</a>
+        </div>
+
+        <button class="btn-primary" type="submit" [disabled]="loading">
+          {{ loading ? 'Logging in…' : 'Log in' }}
+        </button>
+      </form>
+
+      <div class="foot-note">
+        Don’t have account? <a class="link" href="#">Sign up for free</a>
+      </div>
     </div>
-
-    <label>
-      Contraseña
-      <input type="password" formControlName="contrasena" />
-    </label>
-    <div class="err" *ngIf="form.controls.contrasena.touched && form.controls.contrasena.invalid">
-      Ingresa una contraseña válida (mín. 6 caracteres).
-    </div>
-
-    <button type="submit" [disabled]="loading">
-      {{ loading ? 'Ingresando...' : 'Entrar' }}
-    </button>
-
-
-  </form>
+  </div>
 </div>

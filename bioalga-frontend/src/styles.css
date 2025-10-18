@@ -1,11 +1,10 @@
 /* =====================================================================
-   BioAlga - styles.css (global)
+   BioAlga - styles.css (global)  (CORREGIDO PARA CONTRASTE EN TABLAS)
    - Fondo temable (no afecta sidebar)
    - Tokens por tema (texto/superficies/bordes/acento)
-   - Aplicación a tipografía, cards, forms, tablas, etc.
-   - Topbar translúcido
-   - Contenedores transparentes para que se vea el fondo
-   - UI del Customizer (botón flotante + panel lateral) también temable
+   - Variables de CONTRASTE "on-surface" para texto encima de superficies
+   - Aplicación a tipografía, cards, forms, tablas (.table y .table-dark)
+   - Topbar translúcido, UI del Customizer
    ===================================================================== */
 
 /* -------------------- 1) Fondo global (NO sidebar) ------------------- */
@@ -42,19 +41,23 @@ app-root,
 
 /* -------------------- 2) Topbar translúcido -------------------------- */
 .navbar, .topbar, .header{
-  background-color: rgba(7,11,18,.65) !important; /* ajusta a gusto */
+  background-color: rgba(7,11,18,.65) !important;
   backdrop-filter: blur(6px);
 }
 
 /* -------------------- 3) TOKENS de color para el contenido ----------- */
 /* Defaults (tema claro) */
 body{
-  --app-text: #0f172a;     /* texto principal */
+  --app-text: #0f172a;     /* texto general */
   --app-muted: #64748b;    /* texto secundario */
   --surface: #ffffff;      /* fondo cards/controles */
   --surface-2: #f1f5f9;    /* headers/strips */
   --border: #e2e8f0;       /* bordes sutiles */
-  --accent: #2563eb;       /* acento por defecto (claro) */
+  --accent: #2563eb;       /* acento */
+
+  /* NUEVO: variables de contraste para texto sobre superficies */
+  --on-surface: #0f172a;              /* texto sobre surface/surface-2 */
+  --on-surface-muted: #475569;        /* texto secundario sobre superficies */
 }
 
 /* Azul oscuro */
@@ -66,6 +69,9 @@ body[data-app-theme="blue"]{
   --surface-2: #0b1222;
   --border: #233047;
   --accent: #60a5fa;
+
+  --on-surface: #e6ebff;             /* claro sobre superficies oscuras */
+  --on-surface-muted: #a5b3cb;
 }
 
 /* Oscuro */
@@ -77,6 +83,9 @@ body[data-app-theme="dark"]{
   --surface-2: #0a0f1a;
   --border: #1f2937;
   --accent: #93c5fd;
+
+  --on-surface: #eef2ff;
+  --on-surface-muted: #b8c1cc;
 }
 
 /* Claro */
@@ -88,6 +97,9 @@ body[data-app-theme="light"]{
   --surface-2: #f1f5f9;
   --border: #e2e8f0;
   --accent: #2563eb;
+
+  --on-surface: #0f172a;             /* oscuro sobre superficies claras */
+  --on-surface-muted: #475569;
 }
 
 /* Teal oscuro */
@@ -99,6 +111,9 @@ body[data-app-theme="teal"]{
   --surface-2: #011a1f;
   --border: #08343b;
   --accent: #27e1d3;
+
+  --on-surface: #ebfffe;
+  --on-surface-muted: #b3e6e1;
 }
 
 /* -------------------- 4) Aplicación a componentes (Bootstrap) -------- */
@@ -111,30 +126,63 @@ a { color: inherit; }
 /* Cards, listas, modales, offcanvas, dropdowns, acordeones */
 .card, .list-group, .modal-content, .offcanvas, .dropdown-menu, .accordion-item {
   background-color: var(--surface) !important;
-  color: var(--app-text);
+  color: var(--on-surface);
   border-color: var(--border) !important;
 }
-.card .card-header, .accordion-header, .table thead th {
+.card .card-header, .accordion-header, .table thead th, .table thead td {
   background-color: var(--surface-2) !important;
+  color: var(--on-surface) !important;           /* <-- asegura contraste del header */
 }
 
 /* Formularios */
 .form-control, .form-select, .input-group-text, .form-check-input{
   background-color: var(--surface) !important;
-  color: var(--app-text) !important;
+  color: var(--on-surface) !important;
   border-color: var(--border) !important;
 }
-.form-control::placeholder { color: var(--app-muted); opacity: .85; }
-.form-check-label { color: var(--app-text); }
+.form-control::placeholder { color: var(--on-surface-muted); opacity: .85; }
+.form-check-label { color: var(--on-surface); }
 
-/* Tablas */
-.table { color: var(--app-text); background-color: var(--surface); }
-.table thead th { border-color: var(--border) !important; }
+/* Tablas (modo normal) */
+.table {
+  color: var(--on-surface) !important;
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+.table thead th,
+.table thead td { border-color: var(--border) !important; }
 .table tbody td, .table tbody th { border-color: var(--border) !important; }
+
+/* ───────────── FIX ESPECÍFICO PARA .table-dark SEGÚN TEMA ──────────── */
+/* En tema CLARO, si alguna tabla usa .table-dark por error, la normalizamos
+   para que el texto sea oscuro y el fondo sea claro (evita letras blancas) */
+html[data-app-theme="light"] .table-dark,
+body[data-app-theme="light"] .table-dark{
+  background-color: var(--surface) !important;
+  color: var(--on-surface) !important;
+}
+html[data-app-theme="light"] .table-dark thead th,
+html[data-app-theme="light"] .table-dark thead td{
+  background-color: var(--surface-2) !important;
+  color: var(--on-surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* En temas OSCUROS, nos aseguramos de que .table-dark conserve texto claro */
+html[data-app-theme="dark"] .table-dark thead th,
+html[data-app-theme="blue"] .table-dark thead th,
+html[data-app-theme="teal"] .table-dark thead th,
+html[data-app-theme="dark"] .table-dark,
+html[data-app-theme="blue"] .table-dark,
+html[data-app-theme="teal"] .table-dark{
+  color: var(--on-surface) !important;
+  background-color: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
 
 /* Nav-tabs / pills */
 .nav-tabs .nav-link{
-  color: var(--app-text);
+  color: var(--on-surface);
   border-color: var(--border);
   background-color: var(--surface);
 }
@@ -145,7 +193,7 @@ a { color: inherit; }
 
 /* Botones outline frecuentes en filtros */
 .btn-outline-secondary{
-  color: var(--app-text) !important;
+  color: var(--on-surface) !important;
   border-color: var(--border) !important;
   background: transparent;
 }
@@ -155,7 +203,7 @@ a { color: inherit; }
 
 /* Paginación */
 .pagination .page-link{
-  color: var(--app-text);
+  color: var(--on-surface);
   background-color: var(--surface);
   border-color: var(--border);
 }
@@ -165,8 +213,8 @@ a { color: inherit; }
 }
 
 /* Badges y alertas suaves */
-.badge { color: var(--app-text); }
-.alert { color: var(--app-text); background-color: var(--surface-2); border-color: var(--border); }
+.badge { color: var(--on-surface); }
+.alert { color: var(--on-surface); background-color: var(--surface-2); border-color: var(--border); }
 
 /* SVG / Bootstrap Icons heredan color */
 .bi, svg { color: currentColor; fill: currentColor; }
@@ -202,7 +250,7 @@ canvas { background: transparent; }
   width: 360px; max-width: 90vw;
   height: 100%;
   background: var(--surface-2);
-  color: var(--app-text);
+  color: var(--on-surface);
   z-index: 1049;
   box-shadow: -12px 0 28px rgba(0,0,0,.35);
   transition: right .28s ease;
@@ -215,18 +263,18 @@ canvas { background: transparent; }
   padding:16px;
   border-bottom: 1px solid var(--border);
 }
-.customizer-header h5{ margin:0; font-weight:700; color: var(--app-text); }
-.customizer-header small{ color: var(--app-muted); }
+.customizer-header h5{ margin:0; font-weight:700; color: var(--on-surface); }
+.customizer-header small{ color: var(--on-surface-muted); }
 
 .customizer-close{
   position:absolute; right:10px; top:10px;
-  background:transparent; border:0; color: var(--app-muted);
+  background:transparent; border:0; color: var(--on-surface-muted);
   font-size:20px; cursor:pointer;
 }
-.customizer-close:hover{ color: var(--app-text); }
+.customizer-close:hover{ color: var(--on-surface); }
 
 .customizer-body{ padding:14px 16px 20px; overflow:auto; }
-.section-title{ font-size:.9rem; color: var(--app-text); opacity:.9; margin:10px 2px; }
+.section-title{ font-size:.9rem; color: var(--on-surface); opacity:.9; margin:10px 2px; }
 
 /* Tarjetas de tema -> temables */
 .theme-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
@@ -235,7 +283,7 @@ canvas { background: transparent; }
   border-radius:12px;
   padding:12px;
   background: var(--surface);
-  color: var(--app-text);
+  color: var(--on-surface);
   cursor:pointer;
   transition:transform .1s ease,border-color .2s ease,background .2s ease, box-shadow .2s ease;
 }
