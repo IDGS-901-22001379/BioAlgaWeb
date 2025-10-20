@@ -28,20 +28,24 @@ namespace BioAlga.Backend.Data
         public DbSet<DetalleCompra> DetalleCompras { get; set; } = null!;
         public DbSet<InventarioMovimiento> InventarioMovimientos { get; set; } = null!;
 
-        // ======= Ventas / Caja =======
+        // ======= Ventas  =======
         public DbSet<Venta> Ventas { get; set; } = null!;
         public DbSet<DetalleVenta> DetalleVentas { get; set; } = null!;
-        public DbSet<CajaApertura> CajaAperturas { get; set; } = null!;
-        public DbSet<CajaMovimiento> CajaMovimientos { get; set; } = null!;
-        public DbSet<CajaCorte> CajaCortes { get; set; } = null!;
 
         // ======= DEVOLUCIONES =======
         public DbSet<Devolucion> Devoluciones => Set<Devolucion>();
         public DbSet<DetalleDevolucion> DetalleDevoluciones => Set<DetalleDevolucion>();
 
-        // ======= PEDIDOS (NUEVO) =======
+        // ======= PEDIDOS  =======
         public DbSet<Pedido> Pedidos => Set<Pedido>();
         public DbSet<DetallePedido> DetallePedidos => Set<DetallePedido>();
+
+        // ======= CORTE DE CAJA =======
+        public DbSet<Caja> Cajas { get; set; } = null!;
+        public DbSet<CajaTurno> CajaTurnos { get; set; } = null!;
+        public DbSet<CajaMovimiento> CajaMovimientos { get; set; } = null!;
+        public DbSet<VentaPago> VentaPagos { get; set; } = null!;
+
 
 
         // ======= DASHBOARD (vistas SQL) =======
@@ -442,53 +446,6 @@ namespace BioAlga.Backend.Data
                 e.HasIndex(x => x.IdProducto).HasDatabaseName("idx_dd_producto");
             });
 
-            // ============================================
-            // CAJA
-            // ============================================
-            modelBuilder.Entity<CajaApertura>(e =>
-            {
-                e.ToTable("caja_aperturas");
-                e.HasKey(x => x.IdCajaApertura);
-                e.Property(x => x.IdCajaApertura).HasColumnName("id_caja_apertura");
-                e.Property(x => x.FechaApertura).HasColumnName("fecha_apertura");
-                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
-                e.Property(x => x.FondoInicial).HasColumnName("fondo_inicial").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Activa).HasColumnName("activa");
-            });
-
-            modelBuilder.Entity<CajaMovimiento>(e =>
-            {
-                e.ToTable("caja_movimientos");
-                e.HasKey(x => x.IdCajaMovimiento);
-                e.Property(x => x.IdCajaMovimiento).HasColumnName("id_caja_movimiento");
-                e.Property(x => x.IdCajaApertura).HasColumnName("id_caja_apertura");
-                e.Property(x => x.Fecha).HasColumnName("fecha");
-                e.Property(x => x.Tipo).HasConversion<string>().HasColumnName("tipo");
-                e.Property(x => x.Concepto).HasColumnName("concepto").HasMaxLength(180);
-                e.Property(x => x.MontoEfectivo).HasColumnName("monto_efectivo").HasColumnType("decimal(12,2)");
-                e.Property(x => x.IdVenta).HasColumnName("id_venta");
-                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
-
-                e.HasOne(x => x.CajaApertura).WithMany().HasForeignKey(x => x.IdCajaApertura);
-                e.HasOne(x => x.Venta).WithMany().HasForeignKey(x => x.IdVenta).OnDelete(DeleteBehavior.SetNull);
-
-                e.HasIndex(x => x.Fecha).HasDatabaseName("idx_caja_mov_fecha");
-            });
-
-            modelBuilder.Entity<CajaCorte>(e =>
-            {
-                e.ToTable("caja_cortes");
-                e.HasKey(x => x.IdCajaCorte);
-                e.Property(x => x.IdCajaCorte).HasColumnName("id_caja_corte");
-                e.Property(x => x.IdCajaApertura).HasColumnName("id_caja_apertura");
-                e.Property(x => x.FechaCorte).HasColumnName("fecha_corte");
-                e.Property(x => x.TotalEfectivoEsperado).HasColumnName("total_efectivo_esperado").HasColumnType("decimal(12,2)");
-                e.Property(x => x.TotalEfectivoContado).HasColumnName("total_efectivo_contado").HasColumnType("decimal(12,2)");
-                e.Property(x => x.Diferencia).HasColumnName("diferencia").HasColumnType("decimal(12,2)");
-                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
-
-                e.HasOne(x => x.CajaApertura).WithMany().HasForeignKey(x => x.IdCajaApertura);
-            });
 
             // ============================================
             // PEDIDOS (NUEVO)
@@ -615,8 +572,170 @@ namespace BioAlga.Backend.Data
                 entity.Property(e => e.NumCompras).HasColumnName("num_compras");
             });
 
+            // ============================================
+            // CAJAS
+            // ============================================
+            modelBuilder.Entity<Caja>(e =>
+            {
+                e.ToTable("cajas");
 
-            
+                e.HasKey(x => x.IdCaja);
+                e.Property(x => x.IdCaja).HasColumnName("id_caja");
+
+                e.Property(x => x.Nombre)
+                    .HasColumnName("nombre")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                e.Property(x => x.Descripcion)
+                    .HasColumnName("descripcion")
+                    .HasMaxLength(150);
+
+                e.HasIndex(x => x.Nombre).IsUnique();
+            });
+
+            // ============================================
+            // CAJA_TURNOS (apertura / cierre)
+            // ============================================
+            modelBuilder.Entity<CajaTurno>(e =>
+            {
+                e.ToTable("caja_turnos");
+
+                e.HasKey(x => x.IdTurno);
+                e.Property(x => x.IdTurno).HasColumnName("id_turno");
+
+                e.Property(x => x.IdCaja).HasColumnName("id_caja").IsRequired();
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario").IsRequired();
+
+                e.Property(x => x.Apertura)
+                    .HasColumnName("apertura")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                e.Property(x => x.Cierre)
+                    .HasColumnName("cierre");
+
+                e.Property(x => x.SaldoInicial)
+                    .HasColumnName("saldo_inicial")
+                    .HasColumnType("decimal(12,2)")
+                    .HasDefaultValue(0);
+
+                e.Property(x => x.SaldoCierre)
+                    .HasColumnName("saldo_cierre")
+                    .HasColumnType("decimal(12,2)");
+
+                e.Property(x => x.Observaciones)
+                    .HasColumnName("observaciones");
+
+                e.HasOne(x => x.Caja)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdCaja)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_turno_caja");
+
+                e.HasOne<Usuario>()
+                    .WithMany()
+                    .HasForeignKey(x => x.IdUsuario)
+                    .OnDelete(DeleteBehavior.NoAction)
+                    .HasConstraintName("fk_turno_user");
+
+                e.HasIndex(x => new { x.IdCaja, x.Apertura, x.Cierre })
+                    .HasDatabaseName("idx_turno_caja_fecha");
+
+                e.HasIndex(x => new { x.IdUsuario, x.Apertura, x.Cierre })
+                    .HasDatabaseName("idx_turno_user_fecha");
+            });
+
+            // ============================================
+            // CAJA_MOVIMIENTOS (Entradas / Salidas)
+            // ============================================
+            modelBuilder.Entity<CajaMovimiento>(e =>
+            {
+                e.ToTable("caja_movimientos");
+
+                e.HasKey(x => x.IdMov);
+                e.Property(x => x.IdMov).HasColumnName("id_mov");
+
+                e.Property(x => x.IdTurno).HasColumnName("id_turno").IsRequired();
+
+                e.Property(x => x.Fecha)
+                    .HasColumnName("fecha")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                // 'Ingreso' | 'Egreso' (guardado como string)
+                e.Property(x => x.Tipo)
+                    .HasColumnName("tipo")
+                    .HasMaxLength(10)
+                    .IsRequired();
+
+                e.Property(x => x.Concepto)
+                    .HasColumnName("concepto")
+                    .HasMaxLength(150)
+                    .IsRequired();
+
+                e.Property(x => x.Monto)
+                    .HasColumnName("monto")
+                    .HasColumnType("decimal(12,2)")
+                    .IsRequired();
+
+                e.Property(x => x.Referencia)
+                    .HasColumnName("referencia")
+                    .HasMaxLength(100);
+
+                e.HasOne(x => x.Turno)
+                    .WithMany()
+                    .HasForeignKey(x => x.IdTurno)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("fk_mov_turno");
+
+                e.HasIndex(x => new { x.IdTurno, x.Fecha })
+                    .HasDatabaseName("idx_mov_turno_fecha");
+
+                e.HasIndex(x => x.Tipo)
+                    .HasDatabaseName("idx_mov_tipo");
+            });
+
+            // ============================================
+            // VENTA_PAGOS (desglose por método para Mixto)
+            // ============================================
+            modelBuilder.Entity<VentaPago>(e =>
+            {
+                e.ToTable("venta_pagos");
+
+                e.HasKey(x => x.IdPago);
+                e.Property(x => x.IdPago).HasColumnName("id_pago");
+
+                e.Property(x => x.IdVenta).HasColumnName("id_venta").IsRequired();
+
+                // 'Efectivo' | 'Tarjeta' | 'Transferencia' | 'Otro'
+                e.Property(x => x.Metodo)
+                    .HasColumnName("metodo")
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                e.Property(x => x.Monto)
+                    .HasColumnName("monto")
+                    .HasColumnType("decimal(12,2)")
+                    .IsRequired();
+
+                e.Property(x => x.CreadoEn)
+                    .HasColumnName("creado_en")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                e.HasOne<Venta>()
+                    .WithMany()
+                    .HasForeignKey(x => x.IdVenta)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("fk_vp_venta");
+
+                e.HasIndex(x => x.IdVenta).HasDatabaseName("idx_vp_venta");
+                e.HasIndex(x => x.Metodo).HasDatabaseName("idx_vp_metodo");
+            });
+
+
+
+
+
+
         }
     }
 }

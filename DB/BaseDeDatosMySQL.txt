@@ -331,6 +331,179 @@ CREATE TABLE detalle_devolucion (
   INDEX idx_dd_detventa (id_detalle_venta)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ------------------------------------------------------------------corte de caja ----------------------------------------------------------------------------------
+/* =========================================================
+   15) CORTE DE CAJA  (NUEVAS TABLAS y VISTAS)  — BioAlga
+   NOTA: No se modifica ninguna tabla existente.
+   ========================================================= */
+
+-- 15.1) Cajas disponibles (si manejas más de una caja física)
+CREATE TABLE IF NOT EXISTS cajas (
+  id_caja INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL UNIQUE,
+  descripcion VARCHAR(150) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 15.2) Turnos de caja (apertura/cierre por usuario)
+CREATE TABLE IF NOT EXISTS caja_turnos (
+  id_turno INT AUTO_INCREMENT PRIMARY KEY,
+  id_caja INT NOT NULL,
+  id_usuario INT NOT NULL,
+  apertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  cierre   DATETIME NULL,
+  saldo_inicial DECIMAL(12,2) NOT NULL DEFAULT 0,  -- Fondo al iniciar
+  saldo_cierre  DECIMAL(12,2) NULL,                -- Conteo físico al cerrar (opcional)
+  observaciones TEXT NULL,
+  CONSTRAINT fk_turno_caja  FOREIGN KEY (id_caja)   REFERENCES cajas(id_caja),
+  CONSTRAINT fk_turno_user  FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+  INDEX idx_turno_caja_fecha (id_caja, apertura, cierre),
+  INDEX idx_turno_user_fecha (id_usuario, apertura, cierre)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 15.3) Movimientos de caja (entradas/salidas no provenientes de ventas)
+CREATE TABLE IF NOT EXISTS caja_movimientos (
+  id_mov INT AUTO_INCREMENT PRIMARY KEY,
+  id_turno INT NOT NULL,
+  fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  tipo ENUM('Ingreso','Egreso') NOT NULL,
+  concepto VARCHAR(150) NOT NULL,  -- Ej.: "Fondo de caja", "Retiro", "Desayuno"
+  monto DECIMAL(12,2) NOT NULL,
+  referencia VARCHAR(100) NULL,
+  CONSTRAINT fk_mov_turno FOREIGN KEY (id_turno) REFERENCES caja_turnos(id_turno) ON DELETE CASCADE,
+  INDEX idx_mov_turno_fecha (id_turno, fecha),
+  INDEX idx_mov_tipo (tipo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 15.4) Desglose de pagos de una venta (soporta 'Mixto')
+-- (No modifica ventas; sólo añade detalle por método)
+CREATE TABLE IF NOT EXISTS venta_pagos (
+  id_pago INT AUTO_INCREMENT PRIMARY KEY,
+  id_venta INT NOT NULL,
+  metodo ENUM('Efectivo','Tarjeta','Transferencia','Otro') NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_vp_venta FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
+  INDEX idx_vp_venta (id_venta),
+  INDEX idx_vp_metodo (metodo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* ===========================
+   VISTAS DE APOYO AL CORTE
+   (filtrar por id_turno en consultas)
+   =========================== */
+
+-- 15.V1) Ventas del usuario del turno dentro de la ventana [apertura, cierre)
+-- Nota: el criterio es "ventas hechas por el usuario del turno".
+DROP VIEW IF EXISTS vw_corte_turno_ventas;
+CREATE VIEW vw_corte_turno_ventas AS
+SELECT
+  ct.id_turno,
+  v.id_venta,
+  v.fecha_venta,
+  v.total,
+  v.metodo_pago,
+  v.efectivo_recibido,
+  v.cambio
+FROM caja_turnos ct
+JOIN ventas v
+  ON v.id_usuario = ct.id_usuario
+ AND v.estatus = 'Pagada'
+ AND v.fecha_venta >= ct.apertura
+ AND (ct.cierre IS NULL OR v.fecha_venta < ct.cierre);
+
+-- 15.V2) Desglose por método usando venta_pagos (si existen)
+-- Si no hay filas en venta_pagos para una venta, no suma en esta vista.
+DROP VIEW IF EXISTS vw_corte_turno_pagos_por_metodo;
+CREATE VIEW vw_corte_turno_pagos_por_metodo AS
+SELECT
+  ct.id_turno,
+  vp.metodo,
+  SUM(vp.monto) AS monto
+FROM caja_turnos ct
+JOIN ventas v
+  ON v.id_usuario = ct.id_usuario
+ AND v.estatus   = 'Pagada'
+ AND v.fecha_venta >= ct.apertura
+ AND (ct.cierre IS NULL OR v.fecha_venta < ct.cierre)
+JOIN venta_pagos vp ON vp.id_venta = v.id_venta
+GROUP BY ct.id_turno, vp.metodo;
+
+-- 15.V3) Devoluciones en la ventana del turno (se asumen en efectivo para arqueo)
+DROP VIEW IF EXISTS vw_corte_turno_devoluciones;
+CREATE VIEW vw_corte_turno_devoluciones AS
+SELECT
+  ct.id_turno,
+  COALESCE(SUM(d.total_devuelto),0) AS total_devoluciones,
+  COUNT(d.id_devolucion)            AS num_devoluciones
+FROM caja_turnos ct
+LEFT JOIN devoluciones d
+  ON d.id_usuario = ct.id_usuario
+ AND d.fecha_devolucion >= ct.apertura
+ AND (ct.cierre IS NULL OR d.fecha_devolucion < ct.cierre)
+GROUP BY ct.id_turno;
+
+-- 15.V4) Entradas/Salidas manuales capturadas en caja_movimientos
+DROP VIEW IF EXISTS vw_corte_turno_movimientos;
+CREATE VIEW vw_corte_turno_movimientos AS
+SELECT
+  ct.id_turno,
+  COALESCE(SUM(CASE WHEN cm.tipo='Ingreso' THEN cm.monto END),0) AS total_entradas,
+  COALESCE(SUM(CASE WHEN cm.tipo='Egreso'  THEN cm.monto END),0) AS total_salidas
+FROM caja_turnos ct
+LEFT JOIN caja_movimientos cm ON cm.id_turno = ct.id_turno
+GROUP BY ct.id_turno;
+
+-- 15.V5) Resumen para el corte (EFECTIVO esperado)
+-- Efectivo de ventas: por defecto se toma (efectivo_recibido - cambio).
+-- Si utilizas venta_pagos, puedes reemplazar por la vista 15.V2 filtrando metodo='Efectivo'.
+DROP VIEW IF EXISTS vw_corte_turno_resumen;
+CREATE VIEW vw_corte_turno_resumen AS
+WITH ventas_cash AS (
+  SELECT id_turno, COALESCE(SUM(efectivo_recibido - cambio),0) AS efectivo_neto
+  FROM vw_corte_turno_ventas
+  GROUP BY id_turno
+),
+ventas_tot AS (
+  SELECT id_turno, COALESCE(SUM(total),0) AS ventas_totales, COUNT(*) AS num_tickets
+  FROM vw_corte_turno_ventas
+  GROUP BY id_turno
+),
+pagos_metodos AS (
+  SELECT id_turno,
+         COALESCE(SUM(CASE WHEN metodo='Efectivo'     THEN monto END),0) AS m_efectivo,
+         COALESCE(SUM(CASE WHEN metodo='Tarjeta'      THEN monto END),0) AS m_tarjeta,
+         COALESCE(SUM(CASE WHEN metodo='Transferencia'THEN monto END),0) AS m_transferencia,
+         COALESCE(SUM(CASE WHEN metodo='Otro'         THEN monto END),0) AS m_otro
+  FROM vw_corte_turno_pagos_por_metodo
+  GROUP BY id_turno
+)
+SELECT
+  ct.id_turno,
+  ct.id_caja,
+  ct.id_usuario,
+  ct.apertura,
+  ct.cierre,
+  ct.saldo_inicial,
+  vt.ventas_totales,
+  vt.num_tickets,
+  -- Ingresos netos en efectivo por ventas (sin usar venta_pagos)
+  vc.efectivo_neto AS ventas_efectivo_neto,
+  -- Desglose opcional por método si usas venta_pagos
+  pm.m_efectivo, pm.m_tarjeta, pm.m_transferencia, pm.m_otro,
+  mv.total_entradas,
+  mv.total_salidas,
+  dv.total_devoluciones,
+  -- Dinero en caja esperado (arqueo)
+  (ct.saldo_inicial + vc.efectivo_neto + mv.total_entradas - mv.total_salidas - dv.total_devoluciones)
+    AS efectivo_esperado
+FROM caja_turnos ct
+LEFT JOIN ventas_cash   vc ON vc.id_turno = ct.id_turno
+LEFT JOIN ventas_tot    vt ON vt.id_turno = ct.id_turno
+LEFT JOIN pagos_metodos pm ON pm.id_turno = ct.id_turno
+LEFT JOIN vw_corte_turno_movimientos mv ON mv.id_turno = ct.id_turno
+LEFT JOIN vw_corte_turno_devoluciones dv ON dv.id_turno = ct.id_turno;
+-- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 -- ==========================
 -- 14) VISTAS PARA REPORTEO Y DASHBOARD
 -- ==========================

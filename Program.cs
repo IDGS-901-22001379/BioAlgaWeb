@@ -100,10 +100,9 @@ builder.Services.AddScoped<ICompraRepository, CompraRepository>();
 builder.Services.AddScoped<ICompraService, CompraService>();
 builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
 
-// Ventas / Caja
+// Ventas 
 builder.Services.AddScoped<IVentaRepository, VentaRepository>();
 builder.Services.AddScoped<IVentaService, VentaService>();
-builder.Services.AddScoped<ICajaService, CajaService>();
 
 // Devoluciones
 builder.Services.AddScoped<IDevolucionService, DevolucionService>();
@@ -113,6 +112,21 @@ builder.Services.AddScoped<IPedidoService, PedidoService>();
 
 // Dashboard
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+
+// ===============================
+// CORTE DE CAJA 
+// ===============================
+builder.Services.AddScoped<ICajaRepository, CajaRepository>();
+builder.Services.AddScoped<ICajaService, CajaService>();
+
+builder.Services.AddScoped<ICajaTurnoRepository, CajaTurnoRepository>();
+builder.Services.AddScoped<ICajaTurnoService, CajaTurnoService>();
+
+builder.Services.AddScoped<ICajaMovimientoRepository, CajaMovimientoRepository>();
+builder.Services.AddScoped<ICajaMovimientoService, CajaMovimientoService>();
+
+builder.Services.AddScoped<IVentaPagoRepository, VentaPagoRepository>();
+builder.Services.AddScoped<IVentaPagoService, VentaPagoService>();
 
 // ===============================
 // CORS (Angular)

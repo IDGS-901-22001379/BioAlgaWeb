@@ -1,24 +1,35 @@
-using System;
-using BioAlga.Backend.Models.Enums;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace BioAlga.Backend.Models;
-
-public class CajaMovimiento
+namespace BioAlga.Backend.Models
 {
-    public int IdCajaMovimiento { get; set; }
-    public int IdCajaApertura { get; set; }      // a qué apertura pertenece
-    public DateTime Fecha { get; set; } = DateTime.UtcNow;
+    [Table("caja_movimientos")]
+    public class CajaMovimiento
+    {
+        [Key]
+        [Column("id_mov")]
+        public int IdMov { get; set; }
 
-    public TipoCajaMovimiento Tipo { get; set; } // Ingreso/Egreso
-    public string Concepto { get; set; } = string.Empty;
+        [Column("id_turno")]
+        public int IdTurno { get; set; }
 
-    public decimal MontoEfectivo { get; set; }   // movimiento directo de caja
-    public int? IdVenta { get; set; }            // si está ligado a una venta (opcional)
+        [Column("fecha")]
+        public DateTime Fecha { get; set; } = DateTime.UtcNow;
 
-    public int IdUsuario { get; set; }           // quien registró el movimiento
+        // 'Ingreso' | 'Egreso'
+        [Column("tipo")]
+        public string Tipo { get; set; } = null!;
 
-    // Navs
-    public CajaApertura CajaApertura { get; set; } = default!;
-    public Venta? Venta { get; set; }
-    public Usuario Usuario { get; set; } = default!;
+        [Column("concepto")]
+        public string Concepto { get; set; } = null!;
+
+        [Column("monto", TypeName = "decimal(12,2)")]
+        public decimal Monto { get; set; }
+
+        [Column("referencia")]
+        public string? Referencia { get; set; }
+
+        // Nav opcional
+        public CajaTurno? Turno { get; set; }
+    }
 }

@@ -2,22 +2,24 @@ using AutoMapper;
 using BioAlga.Backend.Models;
 using BioAlga.Backend.Dtos;
 
-namespace BioAlga.Backend.Mapping;
-
-public class CajaProfile : Profile
+namespace BioAlga.Backend.Mapping
 {
-    public CajaProfile()
+    public class CajaProfile : Profile
     {
-        // ===== Apertura =====
-        CreateMap<CajaApertura, CajaAperturaDto>();
-        CreateMap<CajaAperturaCreate, CajaApertura>();
+        public CajaProfile()
+        {
+            // ===== Modelo -> DTO =====
+            CreateMap<Caja, CajaDto>()
+                .ForMember(d => d.Id_Caja, o => o.MapFrom(s => s.IdCaja))
+                .ForMember(d => d.Descripcion, o => o.MapFrom(s => s.Descripcion));
 
-        // ===== Movimiento =====
-        CreateMap<CajaMovimiento, CajaMovimientoDto>();
-        CreateMap<CajaMovimientoCreate, CajaMovimiento>();
+            // ===== Crear DTO -> Modelo =====
+            CreateMap<CrearCajaDto, Caja>()
+                .ForMember(d => d.IdCaja, o => o.Ignore());
 
-        // ===== Corte =====
-        CreateMap<CajaCorte, CajaCorteDto>();
-        CreateMap<CajaCorteCreate, CajaCorte>();
+            // ===== Actualizar DTO -> Modelo =====
+            CreateMap<ActualizarCajaDto, Caja>()
+                .ForMember(d => d.IdCaja, o => o.Ignore());
+        }
     }
 }
