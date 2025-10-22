@@ -15,10 +15,12 @@ interface MenuItem {
     | 'ventas'
     | 'pedidos'
     | 'inventario'
-    | 'devoluciones';
+    | 'devoluciones'
+    | 'corte'          // <-- NUEVO
+    | 'movimientos';   // <-- NUEVO
   label: string;
   route: string;
-  icon: string; // <- clase Bootstrap Icons (sin "bi " porque lo ponemos en la vista)
+  icon: string; // clase Bootstrap Icons (sin "bi ")
 }
 
 @Component({
@@ -34,17 +36,21 @@ export class SidebarComponent {
   collapsed = signal(false);
 
   menu: MenuItem[] = [
-    { key: 'dashboard',  label: 'Dashboard',    route: '/inicio/dashboard',         icon: 'bi-grid' },
-    { key: 'usuarios',   label: 'Usuarios',     route: '/inicio/usuarios',          icon: 'bi-person-gear' },
-    { key: 'clientes',   label: 'Clientes',     route: '/inicio/clientes',          icon: 'bi-people-fill' },
-    { key: 'empleados',  label: 'Empleados',    route: '/inicio/empleados',         icon: 'bi-people' },
-    { key: 'proveedores',label: 'Proveedores',  route: '/inicio/proveedores',       icon: 'bi-truck' },
-    { key: 'productos',  label: 'Productos',    route: '/inicio/productos',         icon: 'bi-box-seam' },
-    { key: 'compras',    label: 'Compras',      route: '/inicio/compras',           icon: 'bi-bag-check' },
-    { key: 'ventas',     label: 'Ventas (POS)', route: '/inicio/ventas',            icon: 'bi-cash-coin' },
-    { key: 'pedidos',    label: 'Pedidos',      route: '/inicio/pedidos',           icon: 'bi-clipboard-check' },
-    { key: 'inventario', label: 'Inventario',   route: '/inicio/inventario/stock',  icon: 'bi-archive' },
-    { key: 'devoluciones', label: 'Devoluciones', route: '/inicio/devoluciones',    icon: 'bi-arrow-return-left' },
+    { key: 'dashboard',   label: 'Dashboard',           route: '/inicio/dashboard',          icon: 'bi-grid' },
+    { key: 'usuarios',    label: 'Usuarios',            route: '/inicio/usuarios',           icon: 'bi-person-gear' },
+    { key: 'clientes',    label: 'Clientes',            route: '/inicio/clientes',           icon: 'bi-people-fill' },
+    { key: 'empleados',   label: 'Empleados',           route: '/inicio/empleados',          icon: 'bi-people' },
+    { key: 'proveedores', label: 'Proveedores',         route: '/inicio/proveedores',        icon: 'bi-truck' },
+    { key: 'productos',   label: 'Productos',           route: '/inicio/productos',          icon: 'bi-box-seam' },
+    { key: 'compras',     label: 'Compras',             route: '/inicio/compras',            icon: 'bi-bag-check' },
+    { key: 'ventas',      label: 'Ventas (POS)',        route: '/inicio/ventas',             icon: 'bi-cash-coin' },
+    { key: 'pedidos',     label: 'Pedidos',             route: '/inicio/pedidos',            icon: 'bi-clipboard-check' },
+    { key: 'inventario',  label: 'Inventario',          route: '/inicio/inventario/stock',   icon: 'bi-archive' },
+    { key: 'devoluciones',label: 'Devoluciones',        route: '/inicio/devoluciones',       icon: 'bi-arrow-return-left' },
+
+    // ======= NUEVOS =======
+    { key: 'corte',       label: 'Corte de caja',       route: '/inicio/corte/resumen',      icon: 'bi-scissors' },
+    { key: 'movimientos', label: 'Movimientos de caja', route: '/inicio/movimientos/lista',  icon: 'bi-arrow-left-right' },
   ];
 
   toggleCollapse() { this.collapsed.update(v => !v); }
@@ -52,7 +58,9 @@ export class SidebarComponent {
 
   maybePromptLogin(m: MenuItem, ev: Event) {
     const requiere = [
-      'usuarios','clientes','empleados','proveedores','productos','compras','ventas','pedidos','inventario','devoluciones'
+      'usuarios','clientes','empleados','proveedores','productos',
+      'compras','ventas','pedidos','inventario','devoluciones',
+      'corte','movimientos' // <-- incluye nuevos
     ].includes(m.key);
     if (!requiere) return;
     if (!this.auth.isLoggedIn) {
@@ -67,32 +75,29 @@ export class SidebarComponent {
   }
 
   /** Cambia el tema del SIDEBAR: 'blue' | 'dark' | 'light' | 'teal' */
-setSidebarTheme(theme: 'blue' | 'dark' | 'light' | 'teal') {
-  const el = document.querySelector('.sidebar') as HTMLElement | null;
-  if (!el) return;
-  el.setAttribute('data-theme', theme);
-  try { localStorage.setItem('sidebar-theme', theme); } catch {}
-}
+  setSidebarTheme(theme: 'blue' | 'dark' | 'light' | 'teal') {
+    const el = document.querySelector('.sidebar') as HTMLElement | null;
+    if (!el) return;
+    el.setAttribute('data-theme', theme);
+    try { localStorage.setItem('sidebar-theme', theme); } catch {}
+  }
 
-/** Restaura el último tema guardado (llámala cuando quieras) */
-restoreSidebarTheme() {
-  try {
-    const t = (localStorage.getItem('sidebar-theme') as any) || 'blue';
-    this.setSidebarTheme(t);
-  } catch {
-    this.setSidebarTheme('blue');
+  /** Restaura el último tema guardado (llámala cuando quieras) */
+  restoreSidebarTheme() {
+    try {
+      const t = (localStorage.getItem('sidebar-theme') as any) || 'blue';
+      this.setSidebarTheme(t);
+    } catch {
+      this.setSidebarTheme('blue');
+    }
+  }
+
+  /** Alterna cíclicamente entre temas (útil para probar) */
+  cycleSidebarTheme() {
+    const el = document.querySelector('.sidebar') as HTMLElement | null;
+    const current = (el?.getAttribute('data-theme') as any) || 'blue';
+    const order = ['blue','dark','light','teal'] as const;
+    const next = order[(order.indexOf(current as any) + 1) % order.length];
+    this.setSidebarTheme(next);
   }
 }
-
-/** Alterna cíclicamente entre temas (útil para probar) */
-cycleSidebarTheme() {
-  const el = document.querySelector('.sidebar') as HTMLElement | null;
-  const current = (el?.getAttribute('data-theme') as any) || 'blue';
-  const order = ['blue','dark','light','teal'] as const;
-  const next = order[(order.indexOf(current as any) + 1) % order.length];
-  this.setSidebarTheme(next);
-}
-
-
-}
-

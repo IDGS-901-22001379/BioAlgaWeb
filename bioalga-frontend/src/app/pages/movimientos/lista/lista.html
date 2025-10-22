@@ -1,0 +1,314 @@
+<div class="container-fluid mt-3">
+  <!-- ===================== SELECCIÓN DE TURNO ===================== -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <form [formGroup]="formTurno" class="row g-2 align-items-end">
+        <div class="col-sm-4 col-md-3">
+          <label class="form-label">ID Turno</label>
+          <input
+            type="number"
+            min="1"
+            class="form-control"
+            formControlName="idTurno"
+            placeholder="Ej. 101"
+          />
+        </div>
+        <div class="col-sm-8 col-md-6">
+          <div class="form-text">
+            Ingresa el ID del turno abierto o cerrado que quieres revisar.
+          </div>
+        </div>
+        <div class="col-12 col-md-3 text-md-end">
+          <button
+            type="button"
+            class="btn btn-primary me-2"
+            (click)="buscarTurno()"
+            [disabled]="cargandoTurno()"
+          >
+            <i class="bi bi-search"></i> Buscar turno
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="limpiarTurno()"
+          >
+            Limpiar
+          </button>
+        </div>
+      </form>
+
+      <div class="mt-2" *ngIf="turno() as t">
+        <span class="badge bg-secondary me-2">Turno #{{ t.id_Turno }}</span>
+        <span class="badge bg-info text-dark me-2"
+          >Caja: {{ t.caja_Nombre || t.id_Caja }}</span
+        >
+        <span class="badge bg-light text-dark me-2"
+          >Usuario: {{ t.usuario_Nombre || t.id_Usuario }}</span
+        >
+        <span class="badge bg-success" *ngIf="t.cierre; else abiertoTpl"
+          >Cerrado</span
+        >
+        <ng-template #abiertoTpl
+          ><span class="badge bg-warning text-dark">Abierto</span></ng-template
+        >
+        <div class="small text-muted mt-1">
+          Apertura: {{ t.apertura | date:'short' }} • Cierre: {{ t.cierre ?
+          (t.cierre | date:'short') : '—' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== FILTROS + ACCIONES ===================== -->
+  <div class="card mb-3" *ngIf="turno()">
+    <div class="card-body">
+      <form [formGroup]="formFiltros" class="row g-2 align-items-end">
+        <div class="col-sm-4 col-md-3">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" formControlName="tipo">
+            <option value="">Todos</option>
+            <option value="Ingreso">Ingreso</option>
+            <option value="Egreso">Egreso</option>
+          </select>
+        </div>
+
+        <div class="col-sm-8 col-md-5">
+          <label class="form-label">Buscar (concepto / referencia)</label>
+          <input
+            type="text"
+            class="form-control"
+            formControlName="q"
+            placeholder="Ej. Fondo, desayuno, corte…"
+          />
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Page size</label>
+          <select class="form-select" formControlName="pageSize">
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="20">20</option>
+            <option [ngValue]="50">50</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2 text-end">
+          <div class="btn-group w-100">
+            <button
+              type="button"
+              class="btn btn-success"
+              (click)="abrirCrear('Ingreso')"
+            >
+              <i class="bi bi-plus-circle"></i> Ingreso
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              (click)="abrirCrear('Egreso')"
+            >
+              <i class="bi bi-dash-circle"></i> Egreso
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== TOTALES RÁPIDOS ===================== -->
+  <div class="row g-3 mb-3" *ngIf="turno()">
+    <div class="col-12 col-md-4">
+      <div class="card h-100 border-success">
+        <div class="card-body">
+          <div class="text-muted small">Ingresos</div>
+          <div class="fs-4 text-success fw-bold">
+            $ {{ (totalIngresos() | number:'1.2-2') }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 border-danger">
+        <div class="card-body">
+          <div class="text-muted small">Egresos</div>
+          <div class="fs-4 text-danger fw-bold">
+            $ {{ (totalEgresos() | number:'1.2-2') }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 border-dark">
+        <div class="card-body">
+          <div class="text-muted small">Neto</div>
+          <div class="fs-4 fw-bold">$ {{ (neto() | number:'1.2-2') }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== FORM CREAR / EDITAR ===================== -->
+  <div class="card mb-3" *ngIf="turno() && (creando() || editandoId())">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong *ngIf="creando()"
+        >Nuevo {{ formMovimiento.value.tipo === 'Egreso' ? 'Egreso' : 'Ingreso'
+        }}</strong
+      >
+      <strong *ngIf="editandoId()"
+        >Editar movimiento #{{ editandoId() }}</strong
+      >
+
+      <div>
+        <button
+          class="btn btn-sm btn-outline-secondary me-2"
+          (click)="creando() ? cancelarCrear() : cancelarEdicion()"
+        >
+          Cancelar
+        </button>
+        <button
+          class="btn btn-sm btn-primary"
+          *ngIf="creando()"
+          (click)="guardarNuevo()"
+          [disabled]="cargando()"
+        >
+          Guardar
+        </button>
+        <button
+          class="btn btn-sm btn-primary"
+          *ngIf="editandoId()"
+          (click)="guardarEdicion()"
+          [disabled]="cargando()"
+        >
+          Guardar cambios
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <form [formGroup]="formMovimiento" class="row g-3">
+        <div class="col-12 col-md-2">
+          <label class="form-label">Tipo</label>
+          <select class="form-select" formControlName="tipo">
+            <option value="Ingreso">Ingreso</option>
+            <option value="Egreso">Egreso</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Concepto</label>
+          <input
+            type="text"
+            class="form-control"
+            formControlName="concepto"
+            placeholder="Ej. Fondo inicial, desayuno, retiro..."
+          />
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label">Monto</label>
+          <input
+            type="number"
+            class="form-control text-end"
+            min="0.01"
+            step="0.01"
+            formControlName="monto"
+          />
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label">Referencia</label>
+          <input
+            type="text"
+            class="form-control"
+            formControlName="referencia"
+            placeholder="Opcional"
+          />
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== TABLA DE MOVIMIENTOS ===================== -->
+  <div class="card" *ngIf="turno()">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Movimientos del turno</strong>
+      <div class="small text-muted">Total registros: {{ total() }}</div>
+    </div>
+
+    <div class="table-responsive" [class.opacity-50]="cargando()">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 12%">Fecha</th>
+            <th style="width: 10%">Tipo</th>
+            <th>Concepto</th>
+            <th style="width: 20%">Referencia</th>
+            <th class="text-end" style="width: 12%">Monto</th>
+            <th class="text-end" style="width: 16%">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of movimientos()">
+            <td>{{ m.fecha | date:'short' }}</td>
+            <td>
+              <span
+                class="badge"
+                [class.bg-success]="m.tipo==='Ingreso'"
+                [class.bg-danger]="m.tipo==='Egreso'"
+              >
+                {{ m.tipo }}
+              </span>
+            </td>
+            <td class="text-truncate">{{ m.concepto }}</td>
+            <td class="text-truncate">{{ m.referencia || '—' }}</td>
+            <td
+              class="text-end fw-semibold"
+              [ngClass]="{'text-success': m.tipo==='Ingreso', 'text-danger': m.tipo==='Egreso'}"
+            >
+              {{ m.monto | number:'1.2-2' }}
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <button
+                  class="btn btn-outline-primary"
+                  (click)="abrirEditar(m)"
+                >
+                  <i class="bi bi-pencil"></i> Editar
+                </button>
+                <button class="btn btn-outline-danger" (click)="eliminar(m)">
+                  <i class="bi bi-trash"></i> Eliminar
+                </button>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!movimientos().length">
+            <td colspan="6" class="text-center text-muted py-3">
+              No hay movimientos para los filtros actuales.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        (click)="gotoPage((formFiltros.value.page ?? 1) - 1)"
+        [disabled]="(formFiltros.value.page ?? 1) <= 1"
+      >
+        <i class="bi bi-chevron-left"></i> Anterior
+      </button>
+
+      <div>
+        Página
+        <span class="badge bg-secondary">
+          {{ formFiltros.value.page || 1 }}
+        </span>
+      </div>
+
+      <button
+        class="btn btn-outline-secondary btn-sm"
+        (click)="gotoPage((formFiltros.value.page ?? 1) + 1)"
+        [disabled]="(movimientos().length < (formFiltros.value.pageSize ?? 20))"
+      >
+        Siguiente <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,184 @@
+<div class="container-fluid mt-3">
+  <!-- ================== Barra de acciones ================== -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <form [formGroup]="formTurno" class="row g-2 align-items-end">
+        <div class="col-sm-3 col-md-2">
+          <label class="form-label">ID Turno</label>
+          <input
+            type="number"
+            class="form-control"
+            min="1"
+            formControlName="idTurno"
+            [value]="idTurno() ?? null"
+            placeholder="Ej. 12"
+          />
+        </div>
+        <div class="col-sm-auto">
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="cargarResumen()"
+            [disabled]="cargando()"
+          >
+            <i class="bi bi-arrow-repeat me-1" [class.spin]="cargando()"></i>
+            Consultar
+          </button>
+        </div>
+        <div class="col-sm-auto ms-auto">
+          <span *ngIf="cargando()" class="text-muted small">
+            <i class="bi bi-hourglass-split me-1"></i>Cargando…
+          </span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================== Estado vacío ================== -->
+  <div class="alert alert-info" *ngIf="!cargando() && !resumen()">
+    Ingresa un <b>ID de turno</b> y pulsa <b>Consultar</b> para ver el corte.
+  </div>
+
+  <!-- ================== Resumen ================== -->
+  <ng-container *ngIf="resumen() as r">
+    <!-- Encabezado del turno -->
+    <div class="card mb-3">
+      <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+        <h5 class="mb-0">
+          <i class="bi bi-cash-coin me-2"></i>
+          Corte del Turno <b>#{{ r.id_Turno }}</b>
+        </h5>
+
+        <span class="badge bg-secondary">Caja #{{ r.id_Caja }}</span>
+        <span class="badge bg-light text-dark"
+          >Usuario #{{ r.id_Usuario }}</span
+        >
+
+        <span class="ms-auto small text-muted">
+          <i class="bi bi-calendar2-week me-1"></i>
+          Apertura: {{ r.apertura | date:'short' }} • Cierre usado: {{
+          r.cierre_Usado | date:'short' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small">Ventas totales</div>
+            <div class="display-6 fw-semibold">
+              $ {{ (r.ventas_Totales || 0) | number:'1.2-2' }}
+            </div>
+            <div class="text-muted small">
+              Tickets: <b>{{ r.num_Tickets || 0 }}</b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small">Fondo inicial</div>
+            <div class="display-6 fw-semibold">
+              $ {{ (r.saldo_Inicial || 0) | number:'1.2-2' }}
+            </div>
+            <div class="text-muted small">
+              Efectivo ventas neto:
+              <b>$ {{ (r.ventas_Efectivo_Neto || 0) | number:'1.2-2' }}</b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small">Entradas efectivo</div>
+            <div class="display-6 fw-semibold text-success">
+              $ {{ (r.entradas_Efectivo || 0) | number:'1.2-2' }}
+            </div>
+            <div class="text-muted small">
+              Salidas:
+              <b class="text-danger"
+                >$ {{ (r.salidas_Efectivo || 0) | number:'1.2-2' }}</b
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card h-100 shadow-sm border-success">
+          <div class="card-body">
+            <div class="text-muted small">Efectivo esperado</div>
+            <div class="display-6 fw-semibold text-success">
+              $ {{ (r.efectivo_Esperado || 0) | number:'1.2-2' }}
+            </div>
+            <div class="text-muted small">
+              Devoluciones:
+              <b>$ {{ (r.devoluciones_Total || 0) | number:'1.2-2' }}</b>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Métodos de pago -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <i class="bi bi-credit-card-2-front me-2"></i>Métodos de pago
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60%">Método</th>
+              <th class="text-end" style="width: 40%">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of (r.ventas_Por_Metodo || [])">
+              <td>
+                <span class="badge bg-light text-dark me-2">
+                  <i class="bi bi-circle-fill me-1"></i>{{ m.metodo }}
+                </span>
+              </td>
+              <td class="text-end">$ {{ (m.monto || 0) | number:'1.2-2' }}</td>
+            </tr>
+            <tr *ngIf="!(r.ventas_Por_Metodo && r.ventas_Por_Metodo.length)">
+              <td colspan="2" class="text-center text-muted py-3">
+                Sin desglose por métodos.
+              </td>
+            </tr>
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <th>Total métodos</th>
+              <th class="text-end">
+                $ {{ totalMetodos() | number:'1.2-2' }}
+                <!-- si optaste por computed:  {{ totalMetodos() | number:'1.2-2' }} igual -->
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Notas aclaratorias -->
+    <div class="alert alert-secondary mt-3 mb-0 small">
+      <ul class="mb-0 ps-3">
+        <li>
+          <b>Efectivo esperado</b> = Fondo inicial + Ventas en efectivo (neto) +
+          Entradas – Salidas – Devoluciones.
+        </li>
+        <li>
+          “Cierre usado” es la fecha/hora real de cierre si existe; en turno
+          abierto es la hora actual.
+        </li>
+      </ul>
+    </div>
+  </ng-container>
+</div>

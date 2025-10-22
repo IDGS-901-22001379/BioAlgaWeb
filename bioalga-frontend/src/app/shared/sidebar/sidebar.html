@@ -1,46 +1,89 @@
-<aside class="sidebar" [class.collapsed]="collapsed()" aria-label="Menú principal">
+<aside
+  class="sidebar"
+  [class.collapsed]="collapsed()"
+  aria-label="Menú principal"
+>
   <div class="top">
     <div class="brand" *ngIf="!collapsed()">BioAlga</div>
-    <button class="toggle" type="button" (click)="toggleCollapse()" aria-label="Expandir/Contraer menú">
+    <button
+      class="toggle"
+      type="button"
+      (click)="toggleCollapse()"
+      aria-label="Expandir/Contraer menú"
+    >
       <span *ngIf="!collapsed()">⟨⟨</span>
       <span *ngIf="collapsed()">⟩⟩</span>
     </button>
   </div>
 
   <nav>
-    <a *ngFor="let m of menu"
-       class="nav-item"
-       [title]="titleFor(m)"
-       [routerLink]="m.route"
-       routerLinkActive="active"
-       [routerLinkActiveOptions]="{ exact: true }"
-       (click)="maybePromptLogin(m, $event)">
-      <span class="icon"><i class="bi" [ngClass]="m.icon" aria-hidden="true"></i></span>
+    <a
+      *ngFor="let m of menu"
+      class="nav-item"
+      [title]="titleFor(m)"
+      [routerLink]="m.route"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      (click)="maybePromptLogin(m, $event)"
+    >
+      <span class="icon"
+        ><i class="bi" [ngClass]="m.icon" aria-hidden="true"></i
+      ></span>
       <span class="label" *ngIf="!collapsed()">{{ m.label }}</span>
     </a>
   </nav>
 
   <div class="bottom" *ngIf="auth.isLoggedIn">
-    <!-- Selector de tema (circulitos) -->
-    <div class="theme-switch" *ngIf="!collapsed()" aria-label="Selector de tema">
-      <button class="theme-dot" type="button" title="Azul" aria-label="Tema azul"
-              (click)="setSidebarTheme('blue')"
-              style="background: linear-gradient(180deg,#2563eb 0%,#1e40af 100%);"></button>
+    <!-- Selector de tema -->
+    <div
+      class="theme-switch"
+      *ngIf="!collapsed()"
+      aria-label="Selector de tema"
+    >
+      <button
+        class="theme-dot"
+        type="button"
+        title="Azul"
+        aria-label="Tema azul"
+        (click)="setSidebarTheme('blue')"
+        style="background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%)"
+      ></button>
 
-      <button class="theme-dot" type="button" title="Oscuro" aria-label="Tema oscuro"
-              (click)="setSidebarTheme('dark')"
-              style="background:#0f172a;"></button>
+      <button
+        class="theme-dot"
+        type="button"
+        title="Oscuro"
+        aria-label="Tema oscuro"
+        (click)="setSidebarTheme('dark')"
+        style="background: #0f172a"
+      ></button>
 
-      <button class="theme-dot" type="button" title="Claro" aria-label="Tema claro"
-              (click)="setSidebarTheme('light')"
-              style="background:#ffffff; border-color:#cbd5e1;"></button>
+      <button
+        class="theme-dot"
+        type="button"
+        title="Claro"
+        aria-label="Tema claro"
+        (click)="setSidebarTheme('light')"
+        style="background: #ffffff; border-color: #cbd5e1"
+      ></button>
 
-      <button class="theme-dot" type="button" title="Teal" aria-label="Tema teal"
-              (click)="setSidebarTheme('teal')"
-              style="background:#003b46;"></button>
+      <button
+        class="theme-dot"
+        type="button"
+        title="Teal"
+        aria-label="Tema teal"
+        (click)="setSidebarTheme('teal')"
+        style="background: #003b46"
+      ></button>
     </div>
 
-    <button class="btn-logout" type="button" (click)="logout()" [title]="collapsed() ? 'Salir' : ''" aria-label="Cerrar sesión">
+    <button
+      class="btn-logout"
+      type="button"
+      (click)="logout()"
+      [title]="collapsed() ? 'Salir' : ''"
+      aria-label="Cerrar sesión"
+    >
       <span class="icon">⎋</span>
       <span *ngIf="!collapsed()">Salir</span>
     </button>

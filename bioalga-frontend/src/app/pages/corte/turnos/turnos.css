@@ -1,0 +1,30 @@
+/* ====== Corte > Turnos (estilos ligeros sobre Bootstrap) ====== */
+
+.corte-turnos .card-header .form-select,
+.corte-turnos .card-header .form-control {
+  min-width: 160px;
+}
+
+.corte-turnos .table tbody tr {
+  cursor: pointer;
+}
+
+.corte-turnos .table .badge {
+  font-weight: 600;
+}
+
+.corte-turnos .totales b {
+  font-variant-numeric: tabular-nums;
+}
+
+.corte-turnos .card-footer .btn-group .btn {
+  min-width: 96px;
+}
+
+/* Modal helpers (por si los usas más adelante) */
+.corte-turnos .modal .modal-header {
+  border-bottom: 0;
+}
+.corte-turnos .modal .modal-footer {
+  border-top: 0;
+}

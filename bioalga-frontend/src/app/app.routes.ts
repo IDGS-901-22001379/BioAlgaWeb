@@ -26,6 +26,12 @@ import { DevolucionesPageComponent } from './pages/devoluciones/devoluciones';
 // ✅ Pedidos
 import { PedidosPageComponent } from './pages/pedidos/pedidos';
 
+// ✅ NUEVO: rutas hijas de Corte (turnos/resumen)
+import { CORTE_ROUTES } from './pages/corte/corte.routes';
+
+// ✅ NUEVO: rutas hijas de Movimientos (lista)
+import { MOVIMIENTOS_ROUTES } from './pages/movimientos/movimientos.routes';
+
 export const routes: Routes = [
   // Ruta raíz → login
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -71,7 +77,18 @@ export const routes: Routes = [
 
       // Pedidos
       { path: 'pedidos', component: PedidosPageComponent },
-      // { path: 'ordenes', redirectTo: 'pedidos' }, // alias opcional
+
+      // ========= NUEVO: CORTE (turnos / resumen) =========
+      // Quedará accesible como:
+      //  - /inicio/corte/turnos
+      //  - /inicio/corte/resumen
+      //  - /inicio/corte/resumen/:idTurno
+      { path: 'corte', children: CORTE_ROUTES },
+
+      // ========= NUEVO: MOVIMIENTOS (entradas/salidas) =========
+      // Quedará accesible como:
+      //  - /inicio/movimientos/lista
+      { path: 'movimientos', children: MOVIMIENTOS_ROUTES },
     ]
   },
 

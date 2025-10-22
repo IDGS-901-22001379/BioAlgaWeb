@@ -1,0 +1,55 @@
+/* ====== Corte / Resumen ====== */
+.resumen-container {
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+.card h5, .card h6 {
+  margin: 0;
+}
+
+.badge-soft {
+  background-color: #eef2ff;
+  color: #334155;
+  border: 1px solid #c7d2fe;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .25rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+.stat:last-child {
+  border-bottom: 0;
+}
+
+.kpi {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .5rem 1rem;
+}
+
+.kpi .label {
+  color: #6b7280;
+}
+
+.kpi .value {
+  font-weight: 600;
+}
+
+.table-sm th, .table-sm td {
+  vertical-align: middle;
+}
+
+.text-muted small {
+  color: #9ca3af !important;
+}
+
+/* Ayuda visual para loading */
+.opacity-70 { opacity: .7; }
+
+/* Cards compactas */
+.card-compact .card-body { padding: .75rem 1rem; }
+.card-compact .card-header { padding: .5rem 1rem; }

@@ -128,6 +128,10 @@ builder.Services.AddScoped<ICajaMovimientoService, CajaMovimientoService>();
 builder.Services.AddScoped<IVentaPagoRepository, VentaPagoRepository>();
 builder.Services.AddScoped<IVentaPagoService, VentaPagoService>();
 
+// Corte (Resumen)
+builder.Services.AddScoped<ICorteService, CorteService>();
+
+
 // ===============================
 // CORS (Angular)
 // ===============================

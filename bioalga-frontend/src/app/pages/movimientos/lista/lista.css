@@ -1,0 +1,39 @@
+/* Espaciados y utilidades */
+.table-responsive {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.opacity-50 {
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* Badges y totales */
+.card.border-success .fs-4 { color: #198754; }
+.card.border-danger  .fs-4 { color: #dc3545; }
+
+.badge {
+  letter-spacing: .2px;
+}
+
+/* Cabeceras sticky opcional para tablas largas */
+.table thead th.sticky-top,
+.table thead.sticky-top th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Truncamiento de texto en celdas */
+.text-truncate {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botones de paginación en footer */
+.card-footer .btn {
+  min-width: 120px;
+}
