@@ -115,19 +115,19 @@
             <tbody>
               <tr
                 *ngFor="let t of lista()"
-                [class.table-active]="seleccionado()?.id_Turno === t.id_Turno"
+                [class.table-active]="seleccionado()?.idTurno === t.idTurno"
                 (click)="seleccionar(t)"
               >
-                <td>#{{ t.id_Turno }}</td>
-                <td>{{ t.id_Caja }}</td>
-                <td>{{ t.id_Usuario }}</td>
-                <td>{{ t.apertura | date: 'short' }}</td>
+                <td>#{{ t.idTurno }}</td>
+                <td>{{ t.idCaja }}</td>
+                <td>{{ t.idUsuario }}</td>
+                <td>{{ t.apertura | date:'short' }}</td>
                 <td>{{ t.cierre ? (t.cierre | date:'short') : '-' }}</td>
                 <td class="text-end">
-                  $ {{ valOr0(t.saldo_Inicial) | number:'1.2-2' }}
+                  $ {{ valOr0(t.saldoInicial) | number:'1.2-2' }}
                 </td>
                 <td class="text-end">
-                  $ {{ ((t.saldo_Cierre ?? 0) | number:'1.2-2') }}
+                  $ {{ valOr0(t.saldoCierre ?? 0) | number:'1.2-2' }}
                 </td>
                 <td>
                   <span
@@ -192,13 +192,13 @@
       <!-- Seleccionado -->
       <div class="card mb-3" *ngIf="seleccionado() as t">
         <div class="card-header">
-          <i class="bi bi-info-circle me-2"></i> Turno #{{ t.id_Turno }}
+          <i class="bi bi-info-circle me-2"></i> Turno #{{ t.idTurno }}
         </div>
         <div class="card-body">
           <div class="mb-2">
-            <span class="badge bg-secondary me-2">Caja: {{ t.id_Caja }}</span>
+            <span class="badge bg-secondary me-2">Caja: {{ t.idCaja }}</span>
             <span class="badge bg-light text-dark me-2"
-              >Usuario: {{ t.id_Usuario }}</span
+              >Usuario: {{ t.idUsuario }}</span
             >
             <span
               class="badge"
@@ -216,11 +216,11 @@
 
           <div class="d-flex justify-content-between">
             <span>Saldo inicial</span>
-            <b>$ {{ valOr0(t.saldo_Inicial) | number:'1.2-2' }}</b>
+            <b>$ {{ valOr0(t.saldoInicial) | number:'1.2-2' }}</b>
           </div>
           <div class="d-flex justify-content-between">
             <span>Saldo cierre</span>
-            <b>$ {{ ((t.saldo_Cierre ?? 0) | number:'1.2-2') }}</b>
+            <b>$ {{ valOr0(t.saldoCierre ?? 0) | number:'1.2-2' }}</b>
           </div>
         </div>
         <div class="card-footer text-end">
@@ -241,20 +241,22 @@
         </div>
         <div class="card-body">
           <form [formGroup]="formAbrir" class="row g-3">
-            <div class="col-6">
-              <label class="form-label">Caja (ID)</label>
+            <div class="col-12">
+              <label class="form-label">Usuario (nombre)</label>
               <input
-                type="number"
+                type="text"
                 class="form-control"
-                formControlName="id_Caja"
+                formControlName="nombreUsuario"
+                maxlength="50"
               />
             </div>
-            <div class="col-6">
-              <label class="form-label">Usuario (ID)</label>
+            <div class="col-12">
+              <label class="form-label">Caja (nombre)</label>
               <input
-                type="number"
+                type="text"
                 class="form-control"
-                formControlName="id_Usuario"
+                formControlName="nombreCaja"
+                maxlength="50"
               />
             </div>
             <div class="col-6">
@@ -264,7 +266,7 @@
                 step="0.01"
                 min="0"
                 class="form-control"
-                formControlName="saldo_Inicial"
+                formControlName="saldoInicial"
               />
             </div>
             <div class="col-12">
@@ -308,7 +310,7 @@
               <input
                 type="number"
                 class="form-control"
-                formControlName="id_Turno"
+                [value]="turnoParaCerrarId() ?? ''"
                 readonly
               />
             </div>
@@ -319,7 +321,7 @@
                 step="0.01"
                 min="0"
                 class="form-control"
-                formControlName="saldo_Cierre"
+                formControlName="saldoCierre"
               />
             </div>
             <div class="col-12">

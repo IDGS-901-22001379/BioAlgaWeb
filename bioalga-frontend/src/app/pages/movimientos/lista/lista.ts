@@ -130,7 +130,7 @@ export class MovimientosListaPage implements OnInit {
 
     const f = this.formFiltros.value;
     const params: CajaMovimientoQueryParams = {
-      idTurno: t.id_Turno,
+      idTurno: t.idTurno,
       tipo: (f.tipo || undefined) as any,
       q: (f.q || undefined) as any,
       page: resetPage ? 1 : (f.page ?? 1),
@@ -184,7 +184,7 @@ export class MovimientosListaPage implements OnInit {
     }
 
     const body: CrearCajaMovimientoRequest = {
-      id_Turno: t.id_Turno,
+      id_Turno: t.idTurno,
       tipo: this.formMovimiento.value.tipo as TipoMovimiento,
       concepto: this.formMovimiento.value.concepto?.trim() || '',
       monto: +this.formMovimiento.value.monto!,

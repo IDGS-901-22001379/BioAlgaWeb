@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BioAlga.Backend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e806a5b451bf0dcd21c74c455e34b46093acea0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b9e1628bdf6b1439a7c527d98c143cab5360def8")]
 [assembly: System.Reflection.AssemblyProductAttribute("BioAlga.Backend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BioAlga.Backend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
