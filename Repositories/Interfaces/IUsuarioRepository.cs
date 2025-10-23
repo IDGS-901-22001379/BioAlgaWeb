@@ -12,5 +12,7 @@ namespace BioAlga.Backend.Repositories.Interfaces
         void Remove(Usuario usuario);
         Task<(IReadOnlyList<Usuario> Items, int Total)> SearchAsync(UsuarioQueryParams q);
         Task<int> SaveChangesAsync();
+        Task<Usuario?> GetByUserNameAsync(string userName, bool soloActivos = true);
+
     }
 }

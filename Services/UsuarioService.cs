@@ -100,6 +100,15 @@ namespace BioAlga.Backend.Services
             return _mapper.Map<UsuarioDto>(actualizado);
         }
 
+        // ============================================
+        // NUEVO: obtener usuario por nombre de usuario
+        // ============================================
+        public async Task<UsuarioDto?> ObtenerPorUserNameAsync(string userName, bool soloActivos = true)
+        {
+            var u = await _repo.GetByUserNameAsync(userName, soloActivos);
+            return u is null ? null : _mapper.Map<UsuarioDto>(u);
+        }
+
         public async Task<bool> EliminarAsync(int id)
         {
             var user = await _repo.GetByIdAsync(id);

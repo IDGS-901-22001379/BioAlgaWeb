@@ -11,11 +11,17 @@ namespace BioAlga.Backend.Repositories
         public CajaTurnoRepository(ApplicationDbContext db) => _db = db;
 
         public async Task<CajaTurno?> GetByIdAsync(int id)
-            => await _db.Set<CajaTurno>().AsNoTracking().FirstOrDefaultAsync(x => x.IdTurno == id);
+            => await _db.Set<CajaTurno>()
+                        .AsNoTracking()
+                        .Include(x => x.Caja)
+                        .Include(x => x.Usuario)
+                        .FirstOrDefaultAsync(x => x.IdTurno == id);
 
         public async Task<CajaTurno?> GetTurnoAbiertoPorCajaAsync(int idCaja)
             => await _db.Set<CajaTurno>()
                         .AsNoTracking()
+                        .Include(x => x.Caja)
+                        .Include(x => x.Usuario)
                         .Where(x => x.IdCaja == idCaja && x.Cierre == null)
                         .OrderByDescending(x => x.Apertura)
                         .FirstOrDefaultAsync();
@@ -23,6 +29,8 @@ namespace BioAlga.Backend.Repositories
         public async Task<CajaTurno?> GetTurnoAbiertoPorUsuarioAsync(int idUsuario)
             => await _db.Set<CajaTurno>()
                         .AsNoTracking()
+                        .Include(x => x.Caja)
+                        .Include(x => x.Usuario)
                         .Where(x => x.IdUsuario == idUsuario && x.Cierre == null)
                         .OrderByDescending(x => x.Apertura)
                         .FirstOrDefaultAsync();
@@ -36,7 +44,6 @@ namespace BioAlga.Backend.Repositories
 
         public async Task<bool> CerrarTurnoAsync(CajaTurno turno)
         {
-            // turno viene con IdTurno + SaldoCierre + Cierre asignados por servicio
             _db.Set<CajaTurno>().Update(turno);
             return await _db.SaveChangesAsync() > 0;
         }
@@ -45,14 +52,18 @@ namespace BioAlga.Backend.Repositories
             int? idCaja, int? idUsuario, DateTime? desde, DateTime? hasta,
             int page = 1, int pageSize = 10)
         {
-            IQueryable<CajaTurno> q = _db.Set<CajaTurno>().AsNoTracking();
+            IQueryable<CajaTurno> q = _db.Set<CajaTurno>()
+                                         .AsNoTracking()
+                                         .Include(x => x.Caja)
+                                         .Include(x => x.Usuario);
 
             if (idCaja.HasValue) q = q.Where(x => x.IdCaja == idCaja.Value);
             if (idUsuario.HasValue) q = q.Where(x => x.IdUsuario == idUsuario.Value);
             if (desde.HasValue) q = q.Where(x => x.Apertura >= desde.Value);
             if (hasta.HasValue) q = q.Where(x => (x.Cierre ?? DateTime.MaxValue) <= hasta.Value);
 
-            q = q.OrderByDescending(x => x.Apertura).ThenByDescending(x => x.IdTurno);
+            q = q.OrderByDescending(x => x.Apertura)
+                 .ThenByDescending(x => x.IdTurno);
 
             var total = await q.CountAsync();
 

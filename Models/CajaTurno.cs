@@ -28,10 +28,11 @@ namespace BioAlga.Backend.Models
         [Column("saldo_cierre", TypeName = "decimal(12,2)")]
         public decimal? SaldoCierre { get; set; }
 
-        [Column("observaciones")]
+        [Column("observaciones", TypeName = "varchar(4000)")]
         public string? Observaciones { get; set; }
 
-        // Navs opcionales
+        // Navs
         public Caja? Caja { get; set; }
+        public Usuario? Usuario { get; set; }   // <-- agrega esta navegación
     }
 }

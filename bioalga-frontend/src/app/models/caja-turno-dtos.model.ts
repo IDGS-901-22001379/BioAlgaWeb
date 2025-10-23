@@ -1,41 +1,35 @@
 export interface CajaTurnoDto {
-  id_Turno: number;
-  id_Caja: number;
-  id_Usuario: number;
-
-  apertura: string;       // ISO
-  cierre?: string | null; // ISO
-
-  saldo_Inicial: number;
-  saldo_Cierre?: number | null;
+  idTurno: number;
+  idCaja: number;
+  idUsuario: number;
+  apertura: string;          // ISO
+  cierre?: string | null;    // ISO
+  saldoInicial: number;
+  saldoCierre?: number | null;
   observaciones?: string | null;
-
-  // ⬇️ agregar como opcionales para que no rompa si el backend no los manda
-  caja_Nombre?: string | null;
-  usuario_Nombre?: string | null;
 }
 
-// Abrir turno
+// Request para abrir (sin IDs)
 export interface AbrirTurnoRequest {
-  id_Caja: number;
-  id_Usuario: number;     // el usuario logueado por defecto
-  saldo_Inicial: number;
+  nombreUsuario: string;
+  nombreCaja: string;
+  saldoInicial: number;
   observaciones?: string | null;
+  descripcionCaja?: string | null; // opcional si el backend lo soporta
 }
 
-// Cerrar turno
+// Request para cerrar (id va en la ruta)
 export interface CerrarTurnoRequest {
-  id_Turno: number;       // redundante si viene por ruta, pero útil en formularios
-  saldo_Cierre: number;
+  saldoCierre: number;
   observaciones?: string | null;
 }
 
-// Búsqueda / listado de turnos
+// Query de búsqueda
 export interface CajaTurnoQueryParams {
-  idCaja?: number | null;
-  idUsuario?: number | null;
-  desde?: string | null;  // ISO
-  hasta?: string | null;  // ISO
+  idCaja?: number;
+  idUsuario?: number;
+  desde?: string;  // ISO date/time
+  hasta?: string;  // ISO date/time
   page?: number;
   pageSize?: number;
 }

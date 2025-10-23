@@ -41,8 +41,10 @@ namespace BioAlga.Backend.Controllers
         public async Task<ActionResult<CajaTurnoDto>> ObtenerPorId(int id)
         {
             if (id <= 0) return BadRequest(new { message = "Id inválido." });
+
             var dto = await _service.ObtenerPorIdAsync(id);
             if (dto is null) return NotFound(new { message = "Turno no encontrado." });
+
             return Ok(dto);
         }
 
@@ -50,13 +52,19 @@ namespace BioAlga.Backend.Controllers
         [HttpGet("abierto-por-caja/{idCaja:int}")]
         [ProducesResponseType(typeof(CajaTurnoDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<CajaTurnoDto?>> TurnoAbiertoPorCaja(int idCaja)
-            => Ok(await _service.ObtenerTurnoAbiertoPorCajaAsync(idCaja));
+        {
+            var dto = await _service.ObtenerTurnoAbiertoPorCajaAsync(idCaja);
+            return Ok(dto);
+        }
 
         // GET: api/cajaturnos/abierto-por-usuario/{idUsuario}
         [HttpGet("abierto-por-usuario/{idUsuario:int}")]
         [ProducesResponseType(typeof(CajaTurnoDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<CajaTurnoDto?>> TurnoAbiertoPorUsuario(int idUsuario)
-            => Ok(await _service.ObtenerTurnoAbiertoPorUsuarioAsync(idUsuario));
+        {
+            var dto = await _service.ObtenerTurnoAbiertoPorUsuarioAsync(idUsuario);
+            return Ok(dto);
+        }
 
         // POST: api/cajaturnos/abrir
         [HttpPost("abrir")]
@@ -66,10 +74,11 @@ namespace BioAlga.Backend.Controllers
         public async Task<ActionResult<CajaTurnoDto>> Abrir([FromBody] AbrirTurnoDto body)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
             try
             {
                 var dto = await _service.AbrirTurnoAsync(body);
-                return CreatedAtAction(nameof(ObtenerPorId), new { id = dto.Id_Turno }, dto);
+                return CreatedAtAction(nameof(ObtenerPorId), new { id = dto.IdTurno }, dto);
             }
             catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
             {
@@ -91,7 +100,8 @@ namespace BioAlga.Backend.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<CajaTurnoDto>> Cerrar(int idTurno, [FromBody] CerrarTurnoDto body)
         {
-            if (idTurno <= 0) return BadRequest(new { message = "Id_Turno inválido." });
+            if (idTurno <= 0) return BadRequest(new { message = "IdTurno inválido." });
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             try
             {
@@ -105,7 +115,7 @@ namespace BioAlga.Backend.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al cerrar turno {Id}", idTurno);
+                _logger.LogError(ex, "Error al cerrar turno {IdTurno}", idTurno);
                 return StatusCode(StatusCodes.Status500InternalServerError,
                     new { message = "Error interno al cerrar turno." });
             }

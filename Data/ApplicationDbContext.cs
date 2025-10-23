@@ -602,48 +602,38 @@ namespace BioAlga.Backend.Data
                 e.ToTable("caja_turnos");
 
                 e.HasKey(x => x.IdTurno);
+
                 e.Property(x => x.IdTurno).HasColumnName("id_turno");
-
-                e.Property(x => x.IdCaja).HasColumnName("id_caja").IsRequired();
-                e.Property(x => x.IdUsuario).HasColumnName("id_usuario").IsRequired();
-
-                e.Property(x => x.Apertura)
-                    .HasColumnName("apertura")
-                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                e.Property(x => x.Cierre)
-                    .HasColumnName("cierre");
+                e.Property(x => x.IdCaja).HasColumnName("id_caja");
+                e.Property(x => x.IdUsuario).HasColumnName("id_usuario");
+                e.Property(x => x.Apertura).HasColumnName("apertura");
+                e.Property(x => x.Cierre).HasColumnName("cierre");
 
                 e.Property(x => x.SaldoInicial)
                     .HasColumnName("saldo_inicial")
-                    .HasColumnType("decimal(12,2)")
-                    .HasDefaultValue(0);
+                    .HasPrecision(12, 2);
 
                 e.Property(x => x.SaldoCierre)
                     .HasColumnName("saldo_cierre")
-                    .HasColumnType("decimal(12,2)");
+                    .HasPrecision(12, 2);
 
                 e.Property(x => x.Observaciones)
-                    .HasColumnName("observaciones");
+                    .HasColumnName("observaciones")
+                    .HasColumnType("varchar(4000)");
 
                 e.HasOne(x => x.Caja)
-                    .WithMany()
+                    .WithMany() // o .WithMany(c => c.Turnos) si tienes colección
                     .HasForeignKey(x => x.IdCaja)
-                    .OnDelete(DeleteBehavior.Restrict)
-                    .HasConstraintName("fk_turno_caja");
+                    .HasConstraintName("fk_turno_caja")
+                    .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasOne<Usuario>()
-                    .WithMany()
+                e.HasOne(x => x.Usuario)
+                    .WithMany() // o .WithMany(u => u.Turnos) si tienes colección
                     .HasForeignKey(x => x.IdUsuario)
-                    .OnDelete(DeleteBehavior.NoAction)
-                    .HasConstraintName("fk_turno_user");
-
-                e.HasIndex(x => new { x.IdCaja, x.Apertura, x.Cierre })
-                    .HasDatabaseName("idx_turno_caja_fecha");
-
-                e.HasIndex(x => new { x.IdUsuario, x.Apertura, x.Cierre })
-                    .HasDatabaseName("idx_turno_user_fecha");
+                    .HasConstraintName("fk_turno_usuario")
+                    .OnDelete(DeleteBehavior.Restrict);
             });
+
 
             // ============================================
             // CAJA_MOVIMIENTOS (Entradas / Salidas)

@@ -16,6 +16,10 @@ namespace BioAlga.Backend.Repositories
         public async Task<Caja?> GetByIdAsync(int id)
             => await _db.Set<Caja>().AsNoTracking().FirstOrDefaultAsync(x => x.IdCaja == id);
 
+        public async Task<Caja?> GetByNombreAsync(string nombre)
+           => await _db.Set<Caja>().AsNoTracking().FirstOrDefaultAsync(x => x.Nombre == nombre);
+
+
         public async Task<Caja> AddAsync(Caja caja)
         {
             _db.Set<Caja>().Add(caja);

@@ -29,6 +29,20 @@ namespace BioAlga.Backend.Repositories
         public void Remove(Usuario usuario) =>
             _ctx.Usuarios.Remove(usuario);
 
+        public async Task<Usuario?> GetByUserNameAsync(string userName, bool soloActivos = true)
+        {
+            var q = _ctx.Usuarios
+                .Include(u => u.Rol)
+                .Include(u => u.Empleado)
+                .AsNoTracking()
+                .Where(u => u.Nombre_Usuario == userName); // o NombreUsuario si así se llama en tu entidad
+
+            if (soloActivos) q = q.Where(u => u.Activo);
+            return await q.FirstOrDefaultAsync();
+        }
+
+
+
         // Búsqueda por nombre de usuario y por nombre/apellidos del empleado; paginación y filtro por activo
         public async Task<(IReadOnlyList<Usuario> Items, int Total)> SearchAsync(UsuarioQueryParams q)
         {

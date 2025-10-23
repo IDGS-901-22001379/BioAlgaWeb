@@ -60,7 +60,17 @@ namespace BioAlga.Backend.Services
 
             var ok = await _repo.UpdateAsync(current);
             return ok ? _mapper.Map<CajaDto>(current) : null;
+
+
         }
+
+        public async Task<CajaDto?> ObtenerPorNombreAsync(string nombre)
+        {
+            if (string.IsNullOrWhiteSpace(nombre)) return null;
+            var entity = await _repo.GetByNombreAsync(nombre.Trim());
+            return entity is null ? null : _mapper.Map<CajaDto>(entity);
+        }
+
 
         public async Task<bool> EliminarAsync(int id)
             => await _repo.DeleteAsync(id);

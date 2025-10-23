@@ -1,9 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BioAlga.Backend.Dtos
 {
     public class CerrarTurnoDto
     {
-        public int Id_Turno { get; set; }
-        public decimal Saldo_Cierre { get; set; }
+        [Required, Range(0, 99999999)]
+        public decimal SaldoCierre { get; set; }
+
+        [StringLength(4000)]
         public string? Observaciones { get; set; }
     }
 }
